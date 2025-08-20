@@ -34,6 +34,8 @@ export default async function EditorPage({ params }: { params: { pageId: string 
     ...pageData,
     createdAt: pageData.createdAt?.toDate()?.toISOString() || null,
     lastUpdated: pageData.lastUpdated?.toDate()?.toISOString() || null,
+    // Pass the project ID to the client
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   };
 
 

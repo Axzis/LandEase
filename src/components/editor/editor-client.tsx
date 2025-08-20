@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -40,6 +40,8 @@ interface EditorClientProps {
     pageName: string;
     content: PageContent;
     published?: boolean;
+    // Add this to get the project ID
+    projectId?: string;
   };
 }
 
@@ -277,7 +279,18 @@ export function EditorClient({ pageData }: EditorClientProps) {
     }
   }
 
-  const publicUrl = typeof window !== 'undefined' ? `${window.location.origin}/p/${pageData.id}` : '';
+  const [publicUrl, setPublicUrl] = useState('');
+
+  useEffect(() => {
+    // This now runs only on the client, after the component has mounted
+    if (pageData.projectId) {
+      setPublicUrl(`https://${pageData.projectId}.web.app/p/${pageData.id}`);
+    } else {
+        // Fallback for when projectId is not available
+        setPublicUrl(`${window.location.origin}/p/${pageData.id}`);
+    }
+  }, [pageData.id, pageData.projectId]);
+
 
   return (
     <TooltipProvider>
@@ -309,7 +322,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
               </TooltipContent>
             </Tooltip>
 
-            {isPublished && (
+            {isPublished && publicUrl && (
                  <Button variant="outline" size="sm" asChild>
                     <Link href={publicUrl} target="_blank">
                         <LinkIcon className="mr-2" />
@@ -337,7 +350,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
                         <Switch id="publish-toggle" checked={isPublished} onCheckedChange={handlePublishToggle} disabled={isSaving} />
                         <Label htmlFor="publish-toggle">{isPublished ? 'Published' : 'Not Published'}</Label>
                     </div>
-                    {isPublished && (
+                    {isPublished && publicUrl && (
                         <div className="space-y-2">
                            <Label>Public URL</Label>
                            <div className="flex items-center gap-2">
