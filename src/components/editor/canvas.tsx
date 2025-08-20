@@ -1,73 +1,7 @@
-'use client';
-
+import { EditorCanvas } from './editor-canvas';
 import { PageContent, PageComponent, ComponentType } from '@/lib/types';
 import { ComponentWrapper } from './renderable/component-wrapper';
 import { cn } from '@/lib/utils';
-
-// A map to dynamically render components based on their type
-const componentMap: { [key: string]: React.ComponentType<any> } = {
-    Section: ({ backgroundColor, padding, children }) => (
-        <section style={{ backgroundColor, padding }}>
-            {children}
-        </section>
-    ),
-    Heading: ({ level, text, align }) => {
-        const Tag = level as keyof JSX.IntrinsicElements;
-        return <Tag className={cn('w-full', {'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })}>{text}</Tag>;
-    },
-    Text: ({ text, align }) => <p className={cn('w-full', {'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })}>{text}</p>,
-    Button: ({ text, href, align }) => (
-        <div className={cn('w-full', { 'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })}>
-            <a href={href} className="inline-block bg-primary text-primary-foreground px-4 py-2 rounded-md transition-colors duration-200 hover:bg-primary/90">{text}</a>
-        </div>
-    ),
-    Image: ({ src, alt }) => <img src={src} alt={alt} className="max-w-full h-auto" />,
-};
-
-
-function RenderComponent({ 
-    component, 
-    onSelectComponent, 
-    selectedComponentId, 
-    onDeleteComponent,
-    onAddComponent,
-    onMoveComponent,
-}: { 
-    component: PageComponent, 
-    onSelectComponent: (id: string) => void,
-    selectedComponentId: string | null,
-    onDeleteComponent: (id: string) => void
-    onAddComponent: (type: ComponentType, parentId: string | null, targetId: string | null) => void;
-    onMoveComponent: (draggedId: string, targetId: string) => void;
-}) {
-  const Component = componentMap[component.type];
-  if (!Component) return <div>Unknown component type: {component.type}</div>;
-
-  return (
-    <ComponentWrapper
-      component={component}
-      onSelect={onSelectComponent}
-      onDelete={onDeleteComponent}
-      isSelected={component.id === selectedComponentId}
-      onAddComponent={onAddComponent}
-      onMoveComponent={onMoveComponent}
-    >
-      <Component {...component.props}>
-        {component.children && component.children.map(child => (
-          <RenderComponent 
-            key={child.id} 
-            component={child as PageComponent} 
-            onSelectComponent={onSelectComponent}
-            selectedComponentId={selectedComponentId}
-            onDeleteComponent={onDeleteComponent}
-            onAddComponent={onAddComponent}
-            onMoveComponent={onMoveComponent}
-          />
-        ))}
-      </Component>
-    </ComponentWrapper>
-  );
-}
 
 
 interface CanvasProps {
@@ -110,17 +44,14 @@ export function Canvas({ content, onSelectComponent, selectedComponentId, onDele
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      {content.map(component => (
-        <RenderComponent
-          key={component.id}
-          component={component}
+      <EditorCanvas
+          content={content}
           onSelectComponent={onSelectComponent}
           selectedComponentId={selectedComponentId}
           onDeleteComponent={onDeleteComponent}
           onAddComponent={onAddComponent}
           onMoveComponent={onMoveComponent}
         />
-      ))}
        {content.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="text-center p-8 border-2 border-dashed rounded-lg text-muted-foreground">

@@ -1,4 +1,4 @@
-import { PublicPageRenderer } from "@/components/public/public-page-renderer";
+import { EditorCanvas } from "@/components/editor/editor-canvas";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import type { Metadata } from 'next'
@@ -51,6 +51,6 @@ export default async function PublicPage({ params }: { params: { pageId:string }
     }
 
     return (
-        <PublicPageRenderer content={pageData.content} />
+        <EditorCanvas content={pageData.content} readOnly />
     )
 }
