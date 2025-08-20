@@ -11,7 +11,7 @@ import {
   updateProfile,
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, addDoc, collection } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +25,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { createDefaultPageContent } from '@/lib/utils';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
@@ -59,12 +60,24 @@ export function AuthForm({ mode }: AuthFormProps) {
         const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
         const user = userCredential.user;
         await updateProfile(user, { displayName: values.name });
+        
+        // Create user document
         await setDoc(doc(db, "users", user.uid), {
             uid: user.uid,
             email: user.email,
             displayName: values.name,
             createdAt: serverTimestamp(),
         });
+
+        // Create a default page for the new user
+        await addDoc(collection(db, 'pages'), {
+            userId: user.uid,
+            pageName: 'My First Page',
+            content: createDefaultPageContent(),
+            createdAt: serverTimestamp(),
+            lastUpdated: serverTimestamp(),
+        });
+        
         toast({ title: "Account created successfully!" });
         router.push('/dashboard');
 

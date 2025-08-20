@@ -11,7 +11,7 @@ export function createDefaultPageContent(): PageContent {
     {
       id: "hero-1",
       type: "Section",
-      props: { backgroundColor: "#F9FAFB", padding: "64px" },
+      props: { backgroundColor: "#FFFFFF", padding: "64px" },
       children: [
         {
           id: "head-1",
@@ -26,37 +26,16 @@ export function createDefaultPageContent(): PageContent {
           id: "text-1",
           type: "Text",
           props: {
-            text: "This is a starting point. Click on any element to edit it or drag new components from the left sidebar!",
+            text: "This is your starting point. Click on any element to edit it or drag new components from the left sidebar!",
             align: "center",
           },
         },
         {
           id: "btn-1",
           type: "Button",
-          props: { text: "Learn More", href: "#", align: "center" },
+          props: { text: "Get Started", href: "#", align: "center" },
         },
       ],
     },
-    {
-      id: "feat-1",
-      type: "Section",
-      props: { backgroundColor: "#FFFFFF", padding: "64px" },
-      children: [
-        {
-          id: "head-2",
-          type: "Heading",
-          props: { text: "Our Features", level: "h2", align: "center" },
-        },
-        {
-          id: "img-1",
-          type: "Image",
-          props: {
-            src: "https://placehold.co/400x250",
-            alt: "Feature image",
-            "data-ai-hint": "feature illustration"
-          },
-        },
-      ],
-    },
-  ]
+  ];
 }
