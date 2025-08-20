@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle } from 'lucide-react';
 import Link from 'next/link';
+import { CurrentYear } from '@/components/current-year';
 
 const features = [
   {
@@ -63,7 +64,7 @@ export default function Home() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
               {features.map((feature, index) => (
-                <Card key={index} className="bg-card shadow-sm hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
+                <Card key={index} className="bg-card shadow-sm hover:shadow-lg transition-all duration-300 ease-in-out hover:-translate-y-2">
                   <CardHeader className="flex flex-row items-center gap-4">
                     {feature.icon}
                     <CardTitle className="text-xl font-semibold">{feature.title}</CardTitle>
@@ -80,7 +81,7 @@ export default function Home() {
       
       <footer className="py-8 bg-background border-t">
         <div className="container mx-auto px-4 text-center text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} LandEase. All rights reserved.</p>
+          <p>&copy; <CurrentYear /> LandEase. All rights reserved.</p>
         </div>
       </footer>
     </div>

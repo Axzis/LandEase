@@ -2,17 +2,18 @@
 
 import { PageContent, PageComponent, ComponentType } from '@/lib/types';
 import { ComponentWrapper } from './renderable/component-wrapper';
+import { cn } from '@/lib/utils';
 
 // A map to dynamically render components based on their type
 const componentMap: { [key: string]: React.ComponentType<any> } = {
     Section: (props) => <section style={{ backgroundColor: props.backgroundColor, padding: props.padding }} {...props} />,
     Heading: ({ level, text, align, ...props }) => {
         const Tag = level as keyof JSX.IntrinsicElements;
-        return <Tag style={{ textAlign: align }} {...props}>{text}</Tag>;
+        return <Tag className={cn({ 'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })} {...props}>{text}</Tag>;
     },
-    Text: ({ text, align, ...props }) => <p style={{ textAlign: align }} {...props}>{text}</p>,
+    Text: ({ text, align, ...props }) => <p className={cn({ 'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })} {...props}>{text}</p>,
     Button: ({ text, href, align, ...props }) => (
-        <div style={{ textAlign: align }} {...props}>
+        <div className={cn('w-full', { 'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })} {...props}>
             <a href={href} className="inline-block bg-primary text-primary-foreground px-4 py-2 rounded-md transition-colors duration-200 hover:bg-primary/90">{text}</a>
         </div>
     ),

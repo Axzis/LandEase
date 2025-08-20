@@ -53,6 +53,7 @@ export function createDefaultPageContent(): PageContent {
           props: {
             src: "https://placehold.co/400x250",
             alt: "Feature image",
+            "data-ai-hint": "feature illustration"
           },
         },
       ],

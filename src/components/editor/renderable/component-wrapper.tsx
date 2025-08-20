@@ -118,7 +118,7 @@ export function ComponentWrapper({
           <div className="cursor-grab" onDragStart={handleDragStart} draggable>
             <GripVertical className="w-4 h-4 text-primary-foreground hover:bg-primary/80" />
           </div>
-          <Button variant="ghost" size="icon" onClick={handleDelete} className="h-6 w-6 text-primary-foreground hover:bg-red-500">
+          <Button variant="ghost" size="icon" onClick={handleDelete} className="h-6 w-6 text-primary-foreground hover:bg-destructive">
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>
