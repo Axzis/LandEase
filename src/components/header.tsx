@@ -7,15 +7,26 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center">
         <Logo />
-        <div className="flex flex-1 items-center justify-end space-x-4">
-          <nav className="flex items-center space-x-2">
-            <Button variant="ghost" asChild className="transition-colors duration-200">
+        <div className="ml-auto flex items-center space-x-4">
+          <nav className="hidden md:flex items-center space-x-4 lg:space-x-6 text-sm font-medium">
+            <Link href="/#features" className="text-muted-foreground transition-colors hover:text-primary">
+              Features
+            </Link>
+            <Link href="/#how-it-works" className="text-muted-foreground transition-colors hover:text-primary">
+              How It Works
+            </Link>
+            <Link href="/#pricing" className="text-muted-foreground transition-colors hover:text-primary">
+              Pricing
+            </Link>
+          </nav>
+          <div className="flex items-center space-x-2">
+            <Button variant="ghost" asChild>
               <Link href="/signin">Sign In</Link>
             </Button>
-            <Button asChild className="shadow transition-transform duration-200 hover:scale-105">
-              <Link href="/signup">Get Started for Free</Link>
+            <Button asChild className="transition-transform duration-200 hover:scale-105">
+              <Link href="/signup">Get Started</Link>
             </Button>
-          </nav>
+          </div>
         </div>
       </div>
     </header>
