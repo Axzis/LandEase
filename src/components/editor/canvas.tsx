@@ -6,18 +6,22 @@ import { cn } from '@/lib/utils';
 
 // A map to dynamically render components based on their type
 const componentMap: { [key: string]: React.ComponentType<any> } = {
-    Section: ({ backgroundColor, padding, ...props }) => <section style={{ backgroundColor, padding }} {...props} />,
-    Heading: ({ level, text, align, ...props }) => {
+    Section: ({ backgroundColor, padding, children }) => (
+        <section style={{ backgroundColor, padding }}>
+            {children}
+        </section>
+    ),
+    Heading: ({ level, text, align }) => {
         const Tag = level as keyof JSX.IntrinsicElements;
-        return <Tag className={cn('text-left', { 'text-center': align === 'center', 'text-right': align === 'right' })} {...props}>{text}</Tag>;
+        return <Tag className={cn('w-full', {'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })}>{text}</Tag>;
     },
-    Text: ({ text, align, ...props }) => <p className={cn('text-left', { 'text-center': align === 'center', 'text-right': align === 'right' })} {...props}>{text}</p>,
-    Button: ({ text, href, align, ...props }) => (
-        <div className={cn('w-full', { 'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })} {...props}>
+    Text: ({ text, align }) => <p className={cn('w-full', {'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })}>{text}</p>,
+    Button: ({ text, href, align }) => (
+        <div className={cn('w-full', { 'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })}>
             <a href={href} className="inline-block bg-primary text-primary-foreground px-4 py-2 rounded-md transition-colors duration-200 hover:bg-primary/90">{text}</a>
         </div>
     ),
-    Image: ({ src, alt, ...props }) => <img src={src} alt={alt} {...props} className="max-w-full h-auto" />,
+    Image: ({ src, alt }) => <img src={src} alt={alt} className="max-w-full h-auto" />,
 };
 
 

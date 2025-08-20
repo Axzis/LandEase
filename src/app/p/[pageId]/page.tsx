@@ -8,6 +8,7 @@ async function getPageData(pageId: string) {
     const pageDoc = await getDoc(doc(db, "pages", pageId));
     if (pageDoc.exists()) {
       const data = pageDoc.data();
+      // Only return data if the page is published
       if (data.published) {
         return { id: pageDoc.id, ...data };
       }
@@ -30,6 +31,8 @@ export async function generateMetadata({ params }: { params: { pageId: string } 
  
   return {
     title: pageData.pageName || 'Untitled Page',
+    // You can add more metadata here like description, open graph images, etc.
+    description: `A page created with LandEase.`,
   }
 }
 
