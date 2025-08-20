@@ -32,8 +32,8 @@ export function AIHeadlineGenerator({
     if (!existingHeadline) {
       toast({
         variant: 'destructive',
-        title: 'Cannot generate',
-        description: 'Please enter a headline first.',
+        title: 'Tidak dapat menghasilkan',
+        description: 'Silakan masukkan judul terlebih dahulu.',
       });
       return;
     }
@@ -43,7 +43,7 @@ export function AIHeadlineGenerator({
       const result = await generateHeadline({ existingHeadline });
       if (result.alternativeHeadlines && result.alternativeHeadlines.length > 0) {
         setHeadlines(result.alternativeHeadlines);
-        toast({ title: 'Headlines generated!', description: 'Choose a new headline from the dropdown.' });
+        toast({ title: 'Judul berhasil dibuat!', description: 'Pilih judul baru dari dropdown.' });
       } else {
         throw new Error('No headlines returned.');
       }
@@ -51,8 +51,8 @@ export function AIHeadlineGenerator({
       console.error('Error generating headlines:', error);
       toast({
         variant: 'destructive',
-        title: 'Generation Failed',
-        description: 'Could not generate headlines. Please try again.',
+        title: 'Gagal Membuat',
+        description: 'Tidak dapat membuat judul. Silakan coba lagi.',
       });
     } finally {
       setIsLoading(false);
@@ -61,24 +61,24 @@ export function AIHeadlineGenerator({
 
   return (
     <div className="space-y-2">
-        <Label>AI Headline Generator</Label>
-        <p className="text-sm text-muted-foreground">Generate alternative headlines based on the current text.</p>
+        <Label>Generator Judul AI</Label>
+        <p className="text-sm text-muted-foreground">Hasilkan judul alternatif berdasarkan teks saat ini.</p>
         <Button onClick={handleGenerate} disabled={isLoading} className="w-full">
             {isLoading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               <Sparkles className="mr-2 h-4 w-4" />
             )}
-            {isLoading ? 'Generating...' : 'Generate with AI'}
+            {isLoading ? 'Membuat...' : 'Buat dengan AI'}
           </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
             <Button variant="outline" className="w-full" disabled={headlines.length === 0}>
-                View Suggestions ({headlines.length})
+                Lihat Saran ({headlines.length})
             </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-72">
-          <DropdownMenuLabel>Suggestions</DropdownMenuLabel>
+          <DropdownMenuLabel>Saran</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {headlines.length > 0 ? (
             headlines.map((headline, index) => (
@@ -87,7 +87,7 @@ export function AIHeadlineGenerator({
               </DropdownMenuItem>
             ))
           ) : (
-            <DropdownMenuItem disabled>No suggestions yet. Click generate!</DropdownMenuItem>
+            <DropdownMenuItem disabled>Belum ada saran. Klik buat!</DropdownMenuItem>
           )}
         </DropdownMenuContent>
       </DropdownMenu>

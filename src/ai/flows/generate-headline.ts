@@ -34,11 +34,11 @@ const prompt = ai.definePrompt({
   name: 'generateHeadlinePrompt',
   input: {schema: GenerateHeadlineInputSchema},
   output: {schema: GenerateHeadlineOutputSchema},
-  prompt: `You are a marketing expert tasked with generating catchy and engaging headlines.
+  prompt: `Anda adalah seorang ahli pemasaran yang bertugas untuk menghasilkan judul yang menarik dan memikat.
 
-  Generate 5 alternative headlines for the following existing headline. Return the headlines as a JSON array of strings.
+  Hasilkan 5 alternatif judul untuk judul yang sudah ada berikut ini. Kembalikan judul dalam format array JSON berisi string.
 
-  Existing Headline: {{{existingHeadline}}}`,
+  Judul yang ada: {{{existingHeadline}}}`,
 });
 
 const generateHeadlineFlow = ai.defineFlow(
