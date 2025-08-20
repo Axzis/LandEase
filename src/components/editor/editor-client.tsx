@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
-import { PageContent, PageComponent } from '@/lib/types';
+import { PageContent, PageComponent, ComponentType } from '@/lib/types';
 import { ComponentPalette } from './component-palette';
 import { Canvas } from './canvas';
 import { InspectorPanel } from './inspector-panel';
@@ -26,6 +26,27 @@ interface EditorClientProps {
     content: PageContent;
   };
 }
+
+const generateId = () => `comp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+const createNewComponent = (type: ComponentType): PageComponent => {
+  const id = generateId();
+  switch (type) {
+    case 'Section':
+      return { id, type: 'Section', props: { backgroundColor: '#FFFFFF', padding: '64px' }, children: [] };
+    case 'Heading':
+      return { id, type: 'Heading', props: { text: 'New Heading', level: 'h2', align: 'left' } };
+    case 'Text':
+      return { id, type: 'Text', props: { text: 'This is a new text block. Click to edit.', align: 'left' } };
+    case 'Button':
+      return { id, type: 'Button', props: { text: 'Click Me', href: '#', align: 'left' } };
+    case 'Image':
+      return { id, type: 'Image', props: { src: 'https://placehold.co/600x400', alt: 'Placeholder image' } };
+    default:
+      throw new Error(`Unknown component type: ${type}`);
+  }
+};
+
 
 export function EditorClient({ pageData }: EditorClientProps) {
   const [pageName, setPageName] = useState(pageData.pageName);
@@ -75,8 +96,9 @@ export function EditorClient({ pageData }: EditorClientProps) {
   };
 
   const deleteComponent = (id: string) => {
-    const newContent = JSON.parse(JSON.stringify(content));
-
+    if (selectedComponentId === id) {
+      setSelectedComponentId(null);
+    }
     const deleteRecursively = (components: PageComponent[]): PageComponent[] => {
         return components.filter(component => {
             if (component.id === id) return false;
@@ -86,10 +108,103 @@ export function EditorClient({ pageData }: EditorClientProps) {
             return true;
         });
     };
+    setContent(prev => deleteRecursively(JSON.parse(JSON.stringify(prev))));
+    setIsDirty(true);
+  };
 
-    const updatedContent = deleteRecursively(newContent);
-    setContent(updatedContent);
-    setSelectedComponentId(null);
+  const handleAddComponent = (type: ComponentType, parentId: string | null, targetId: string | null = null) => {
+    const newComponent = createNewComponent(type);
+    
+    const addRecursively = (items: PageComponent[]): PageComponent[] => {
+      // Add to root level
+      if (parentId === null) {
+        if (targetId === null) { // Add to end of root
+          return [...items, newComponent];
+        }
+        // Add before a specific root component
+        const newItems = [];
+        for (const item of items) {
+          if (item.id === targetId) newItems.push(newComponent);
+          newItems.push(item);
+        }
+        return newItems;
+      }
+
+      // Add to a nested level (i.e., inside a Section)
+      return items.map(item => {
+        if (item.id === parentId && item.children) {
+          let newChildren = [...item.children];
+          if (targetId === null) { // Add to end of section
+            newChildren.push(newComponent);
+          } else { // Add before specific component in section
+            const newChildrenWithTarget = [];
+            for (const child of newChildren) {
+              if (child.id === targetId) newChildrenWithTarget.push(newComponent);
+              newChildrenWithTarget.push(child);
+            }
+            newChildren = newChildrenWithTarget;
+          }
+          return { ...item, children: newChildren };
+        } else if (item.children) {
+          return { ...item, children: addRecursively(item.children) };
+        }
+        return item;
+      });
+    };
+
+    setContent(prev => addRecursively(JSON.parse(JSON.stringify(prev))));
+    setSelectedComponentId(newComponent.id);
+    setIsDirty(true);
+  };
+
+  const handleMoveComponent = (draggedId: string, targetId: string) => {
+    if (draggedId === targetId) return;
+
+    let componentToMove: PageComponent | null = null;
+    let contentAfterRemoval: PageComponent[] = [];
+  
+    function removeComponent(items: PageComponent[], id: string): PageComponent[] {
+      return items.reduce((acc, item) => {
+        if (item.id === id) {
+          componentToMove = item;
+          return acc;
+        }
+        if (item.children) {
+          item.children = removeComponent(item.children, id);
+        }
+        acc.push(item);
+        return acc;
+      }, [] as PageComponent[]);
+    }
+  
+    contentAfterRemoval = removeComponent(JSON.parse(JSON.stringify(content)), draggedId);
+  
+    if (!componentToMove) return;
+  
+    function insertComponent(items: PageComponent[], tId: string): PageComponent[] {
+      // Special case: Dropping on a section adds to its children
+      const targetSection = items.find(item => item.id === tId && item.type === 'Section');
+      if (targetSection && targetSection.children) {
+        targetSection.children.push(componentToMove!);
+        return items;
+      }
+      
+      // Otherwise, insert before the target component
+      return items.reduce((acc, item) => {
+        if (item.id === tId) {
+          acc.push(componentToMove!);
+        }
+        if (item.children) {
+          item.children = insertComponent(item.children, tId);
+        }
+        acc.push(item);
+        return acc;
+      }, [] as PageComponent[]);
+    }
+    
+    const newContent = insertComponent(contentAfterRemoval, targetId);
+    
+    setContent(newContent);
     setIsDirty(true);
   };
 
@@ -100,7 +215,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
       const pageRef = doc(db, 'pages', pageData.id);
       await updateDoc(pageRef, {
         pageName,
-        content,
+        content: JSON.parse(JSON.stringify(content)),
         lastUpdated: serverTimestamp(),
       });
       toast({
@@ -149,7 +264,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
                 <p>You have unsaved changes</p>
               </TooltipContent>
             </Tooltip>
-            <Button onClick={handleSave} disabled={isSaving}>
+            <Button onClick={handleSave} disabled={isSaving || !isDirty}>
               {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               {isSaving ? 'Saving...' : 'Save'}
             </Button>
@@ -163,6 +278,8 @@ export function EditorClient({ pageData }: EditorClientProps) {
               onSelectComponent={handleSelectComponent}
               selectedComponentId={selectedComponentId}
               onDeleteComponent={deleteComponent}
+              onAddComponent={handleAddComponent}
+              onMoveComponent={handleMoveComponent}
             />
           </main>
           <aside className="w-80 bg-background border-l flex-shrink-0 basis-80 overflow-y-auto">

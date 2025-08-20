@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Label } from '@/components/ui/label';
 
 interface AIHeadlineGeneratorProps {
   existingHeadline: string;
@@ -82,6 +83,3 @@ export function AIHeadlineGenerator({
     </div>
   );
 }
-
-// Add Label to exports
-import { Label } from '@/components/ui/label';

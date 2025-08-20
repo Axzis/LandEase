@@ -1,6 +1,6 @@
 'use client';
 
-import { PageContent, PageComponent } from '@/lib/types';
+import { PageContent, PageComponent, ComponentType } from '@/lib/types';
 import { ComponentWrapper } from './renderable/component-wrapper';
 
 // A map to dynamically render components based on their type
@@ -20,22 +20,32 @@ const componentMap: { [key: string]: React.ComponentType<any> } = {
 };
 
 
-function RenderComponent({ component, onSelectComponent, selectedComponentId, onDeleteComponent }: { 
+function RenderComponent({ 
+    component, 
+    onSelectComponent, 
+    selectedComponentId, 
+    onDeleteComponent,
+    onAddComponent,
+    onMoveComponent,
+}: { 
     component: PageComponent, 
     onSelectComponent: (id: string) => void,
     selectedComponentId: string | null,
     onDeleteComponent: (id: string) => void
+    onAddComponent: (type: ComponentType, parentId: string | null, targetId: string | null) => void;
+    onMoveComponent: (draggedId: string, targetId: string) => void;
 }) {
   const Component = componentMap[component.type];
   if (!Component) return <div>Unknown component type: {component.type}</div>;
 
   return (
     <ComponentWrapper
-      id={component.id}
-      type={component.type}
+      component={component}
       onSelect={onSelectComponent}
       onDelete={onDeleteComponent}
       isSelected={component.id === selectedComponentId}
+      onAddComponent={onAddComponent}
+      onMoveComponent={onMoveComponent}
     >
       <Component {...component.props}>
         {component.children && component.children.map(child => (
@@ -45,6 +55,8 @@ function RenderComponent({ component, onSelectComponent, selectedComponentId, on
             onSelectComponent={onSelectComponent}
             selectedComponentId={selectedComponentId}
             onDeleteComponent={onDeleteComponent}
+            onAddComponent={onAddComponent}
+            onMoveComponent={onMoveComponent}
           />
         ))}
       </Component>
@@ -58,18 +70,40 @@ interface CanvasProps {
   onSelectComponent: (id: string | null) => void;
   selectedComponentId: string | null;
   onDeleteComponent: (id: string) => void;
+  onAddComponent: (type: ComponentType, parentId: string | null, targetId: string | null) => void;
+  onMoveComponent: (draggedId: string, targetId: string) => void;
 }
 
-export function Canvas({ content, onSelectComponent, selectedComponentId, onDeleteComponent }: CanvasProps) {
+export function Canvas({ content, onSelectComponent, selectedComponentId, onDeleteComponent, onAddComponent, onMoveComponent }: CanvasProps) {
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation(); // Prevent drop from bubbling to child wrappers
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      if (data.type === 'new-component') {
+        // Dropping on the canvas background adds the component to the end of the page
+        onAddComponent(data.componentType, null, null);
+      }
+    } catch(err) {
+      console.error("Invalid drop data on canvas:", err);
+    }
+  };
+
   return (
     <div 
-      className="p-4 bg-white h-full"
+      className="p-4 bg-white h-full relative"
       onClick={(e) => {
         // Clicks on the canvas background deselect components
         if (e.target === e.currentTarget) {
           onSelectComponent(null);
         }
       }}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     >
       {content.map(component => (
         <RenderComponent
@@ -78,8 +112,18 @@ export function Canvas({ content, onSelectComponent, selectedComponentId, onDele
           onSelectComponent={onSelectComponent}
           selectedComponentId={selectedComponentId}
           onDeleteComponent={onDeleteComponent}
+          onAddComponent={onAddComponent}
+          onMoveComponent={onMoveComponent}
         />
       ))}
+       {content.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="text-center p-8 border-2 border-dashed rounded-lg text-muted-foreground">
+                  <p className="font-semibold">Canvas is empty.</p>
+                  <p>Drag components from the left panel and drop them here.</p>
+              </div>
+          </div>
+      )}
     </div>
   );
 }
