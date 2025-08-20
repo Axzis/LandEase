@@ -11,7 +11,7 @@ import { ComponentPalette } from './component-palette';
 import { Canvas } from './canvas';
 import { InspectorPanel } from './inspector-panel';
 import { Button } from '../ui/button';
-import { Loader2, Save, ArrowLeft, Dot } from 'lucide-react';
+import { Loader2, Save, ArrowLeft, Dot, Link as LinkIcon, Globe } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -19,12 +19,27 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Separator } from '../ui/separator';
+import { Switch } from '../ui/switch';
+import { Label } from '../ui/label';
+import Link from 'next/link';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface EditorClientProps {
   pageData: {
     id: string;
     pageName: string;
     content: PageContent;
+    published?: boolean;
   };
 }
 
@@ -52,6 +67,7 @@ const createNewComponent = (type: ComponentType): PageComponent => {
 export function EditorClient({ pageData }: EditorClientProps) {
   const [pageName, setPageName] = useState(pageData.pageName);
   const [content, setContent] = useState<PageContent>(pageData.content);
+  const [isPublished, setIsPublished] = useState(pageData.published || false);
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -236,6 +252,33 @@ export function EditorClient({ pageData }: EditorClientProps) {
     }
   };
 
+  const handlePublishToggle = async (published: boolean) => {
+    setIsSaving(true);
+    try {
+      const pageRef = doc(db, 'pages', pageData.id);
+      await updateDoc(pageRef, {
+        published,
+        lastUpdated: serverTimestamp(),
+      });
+      setIsPublished(published);
+      toast({
+        title: `Page ${published ? 'Published' : 'Unpublished'}`,
+        description: `Your page is now ${published ? 'live' : 'private'}.`,
+      });
+    } catch (error) {
+        console.error('Error updating publish status:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Update Failed',
+          description: 'Could not update publish status. Please try again.',
+        });
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  const publicUrl = typeof window !== 'undefined' ? `${window.location.origin}/p/${pageData.id}` : '';
+
   return (
     <TooltipProvider>
       <div className="flex flex-col h-screen bg-muted">
@@ -254,7 +297,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
               className="font-semibold text-lg bg-transparent border-none focus:ring-0 p-0"
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
             <Tooltip>
               <TooltipTrigger>
                 <div className="relative">
@@ -265,6 +308,53 @@ export function EditorClient({ pageData }: EditorClientProps) {
                 <p>You have unsaved changes</p>
               </TooltipContent>
             </Tooltip>
+
+            {isPublished && (
+                 <Button variant="outline" size="sm" asChild>
+                    <Link href={publicUrl} target="_blank">
+                        <LinkIcon className="mr-2" />
+                        View Live
+                    </Link>
+                </Button>
+            )}
+
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="secondary" size="sm">
+                        <Globe className="mr-2" />
+                        Publish
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>Publish Settings</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Publishing your page makes it accessible to anyone with the public URL. 
+                        You can unpublish it at any time.
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="flex items-center space-x-2 my-4">
+                        <Switch id="publish-toggle" checked={isPublished} onCheckedChange={handlePublishToggle} disabled={isSaving} />
+                        <Label htmlFor="publish-toggle">{isPublished ? 'Published' : 'Not Published'}</Label>
+                    </div>
+                    {isPublished && (
+                        <div className="space-y-2">
+                           <Label>Public URL</Label>
+                           <div className="flex items-center gap-2">
+                            <input readOnly value={publicUrl} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                            <Button variant="outline" size="sm" onClick={() => {
+                                navigator.clipboard.writeText(publicUrl);
+                                toast({ title: 'Copied to clipboard!' });
+                            }}>Copy</Button>
+                           </div>
+                        </div>
+                    )}
+                    <AlertDialogFooter>
+                    <AlertDialogCancel>Close</AlertDialogCancel>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             <Button onClick={handleSave} disabled={isSaving || !isDirty}>
               {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               {isSaving ? 'Saving...' : 'Save'}

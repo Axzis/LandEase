@@ -29,9 +29,17 @@ export default async function EditorPage({ params }: { params: { pageId: string 
     )
   }
 
+  // Ensure pageData is serializable for the client component
+  const serializablePageData = {
+    ...pageData,
+    createdAt: pageData.createdAt?.toDate()?.toISOString() || null,
+    lastUpdated: pageData.lastUpdated?.toDate()?.toISOString() || null,
+  };
+
+
   return (
     <ProtectedRoute>
-      <EditorClient pageData={JSON.parse(JSON.stringify(pageData))} />
+      <EditorClient pageData={JSON.parse(JSON.stringify(serializablePageData))} />
     </ProtectedRoute>
   );
 }
