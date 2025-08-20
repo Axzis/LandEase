@@ -325,7 +325,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
             {isPublished && publicUrl && (
                  <Button variant="outline" size="sm" asChild>
                     <Link href={publicUrl} target="_blank">
-                        <LinkIcon className="mr-2" />
+                        <LinkIcon className="mr-2 h-4 w-4" />
                         View Live
                     </Link>
                 </Button>
@@ -334,7 +334,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
             <AlertDialog>
                 <AlertDialogTrigger asChild>
                     <Button variant="secondary" size="sm">
-                        <Globe className="mr-2" />
+                        <Globe className="mr-2 h-4 w-4" />
                         Publish
                     </Button>
                 </AlertDialogTrigger>

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { PageContent, PageComponent, ComponentType } from '@/lib/types';
@@ -9,7 +10,7 @@ import React from 'react';
 // A map to dynamically render components based on their type
 const componentMap: { [key: string]: React.ComponentType<any> } = {
     Section: ({ backgroundColor, padding, ...rest }) => (
-        <section style={{ backgroundColor, padding }} {...rest} />
+        <section style={{ backgroundColor, padding: padding || '0px' }} {...rest} />
     ),
     Heading: ({ level, text, align, ...rest }) => {
         const Tag = level as keyof JSX.IntrinsicElements;
