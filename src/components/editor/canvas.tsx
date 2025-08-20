@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 
 // A map to dynamically render components based on their type
 const componentMap: { [key: string]: React.ComponentType<any> } = {
-    Section: (props) => <section style={{ backgroundColor: props.backgroundColor, padding: props.padding }} {...props} />,
+    Section: ({ backgroundColor, padding, ...props }) => <section style={{ backgroundColor, padding }} {...props} />,
     Heading: ({ level, text, align, ...props }) => {
         const Tag = level as keyof JSX.IntrinsicElements;
         return <Tag className={cn('text-left', { 'text-center': align === 'center', 'text-right': align === 'right' })} {...props}>{text}</Tag>;
