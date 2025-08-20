@@ -1,5 +1,4 @@
 import { Heading1, Type, Image as ImageIcon, RectangleHorizontal, MousePointerClick } from 'lucide-react';
-import { ScrollArea } from '../ui/scroll-area';
 import { ComponentType } from '@/lib/types';
 
 const components: { name: string; icon: JSX.Element; type: ComponentType }[] = [
@@ -20,25 +19,21 @@ export function ComponentPalette() {
   };
 
   return (
-    <aside className="w-60 bg-background border-r flex-shrink-0 basis-60">
-      <div className="p-4 border-b">
-        <h2 className="text-lg font-semibold">Components</h2>
+    <div className="p-4">
+      <h2 className="text-lg font-semibold mb-4">Components</h2>
+      <div className="grid grid-cols-2 gap-4">
+        {components.map((component) => (
+          <div
+            key={component.name}
+            className="p-2 border rounded-lg flex flex-col items-center justify-center text-center cursor-grab hover:bg-secondary transition-colors duration-200"
+            draggable="true"
+            onDragStart={(e) => handleDragStart(e, component.type)}
+          >
+            <div className="text-primary">{component.icon}</div>
+            <span className="text-xs mt-2 font-medium">{component.name}</span>
+          </div>
+        ))}
       </div>
-      <ScrollArea className="h-[calc(100vh-65px)]">
-        <div className="p-4 grid grid-cols-2 gap-4">
-          {components.map((component) => (
-            <div
-              key={component.name}
-              className="p-2 border rounded-lg flex flex-col items-center justify-center text-center cursor-grab hover:bg-secondary transition-colors duration-200"
-              draggable="true"
-              onDragStart={(e) => handleDragStart(e, component.type)}
-            >
-              <div className="text-primary">{component.icon}</div>
-              <span className="text-xs mt-2 font-medium">{component.name}</span>
-            </div>
-          ))}
-        </div>
-      </ScrollArea>
-    </aside>
+    </div>
   );
 }

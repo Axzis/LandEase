@@ -6,7 +6,6 @@ import { ButtonInspector } from './inspector-panels/button-inspector';
 import { ImageInspector } from './inspector-panels/image-inspector';
 import { SectionInspector } from './inspector-panels/section-inspector';
 import { PageInspector } from './inspector-panels/page-inspector';
-import { ScrollArea } from '../ui/scroll-area';
 
 interface InspectorPanelProps {
   selectedComponent: PageComponent | null;
@@ -28,8 +27,7 @@ export function InspectorPanel({ selectedComponent, onUpdateComponent, onClearSe
   const key = selectedComponent ? selectedComponent.id : 'page-inspector';
 
   return (
-    <ScrollArea className="h-full">
-      <div className="p-4">
+      <div className="p-4 h-full">
         <AnimatePresence mode="wait">
           <motion.div
             key={key}
@@ -37,6 +35,7 @@ export function InspectorPanel({ selectedComponent, onUpdateComponent, onClearSe
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.2 }}
+            className="h-full"
           >
             {selectedComponent && Inspector ? (
               <Inspector
@@ -49,6 +48,5 @@ export function InspectorPanel({ selectedComponent, onUpdateComponent, onClearSe
           </motion.div>
         </AnimatePresence>
       </div>
-    </ScrollArea>
   );
 }

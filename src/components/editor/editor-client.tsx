@@ -18,6 +18,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { Separator } from '../ui/separator';
 
 interface EditorClientProps {
   pageData: {
@@ -271,8 +272,18 @@ export function EditorClient({ pageData }: EditorClientProps) {
           </div>
         </header>
         <div className="flex-grow flex overflow-hidden">
-          <ComponentPalette />
-          <main className="flex-grow flex-shrink-[3] basis-0 overflow-auto">
+          <aside className="w-80 bg-background border-r flex-shrink-0 basis-80 overflow-y-auto flex flex-col">
+            <ComponentPalette />
+            <Separator />
+            <div className="flex-grow">
+              <InspectorPanel
+                selectedComponent={selectedComponent}
+                onUpdateComponent={updateComponentProps}
+                onClearSelection={() => handleSelectComponent(null)}
+              />
+            </div>
+          </aside>
+          <main className="flex-grow overflow-auto">
             <Canvas
               content={content}
               onSelectComponent={handleSelectComponent}
@@ -282,13 +293,6 @@ export function EditorClient({ pageData }: EditorClientProps) {
               onMoveComponent={handleMoveComponent}
             />
           </main>
-          <aside className="w-80 bg-background border-l flex-shrink-0 basis-80 overflow-y-auto">
-            <InspectorPanel
-              selectedComponent={selectedComponent}
-              onUpdateComponent={updateComponentProps}
-              onClearSelection={() => handleSelectComponent(null)}
-            />
-          </aside>
         </div>
       </div>
     </TooltipProvider>
