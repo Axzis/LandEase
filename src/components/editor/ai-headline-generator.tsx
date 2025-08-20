@@ -29,6 +29,14 @@ export function AIHeadlineGenerator({
   const { toast } = useToast();
 
   const handleGenerate = async () => {
+    if (!existingHeadline) {
+      toast({
+        variant: 'destructive',
+        title: 'Cannot generate',
+        description: 'Please enter a headline first.',
+      });
+      return;
+    }
     setIsLoading(true);
     setHeadlines([]);
     try {
@@ -55,9 +63,7 @@ export function AIHeadlineGenerator({
     <div className="space-y-2">
         <Label>AI Headline Generator</Label>
         <p className="text-sm text-muted-foreground">Generate alternative headlines based on the current text.</p>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button onClick={handleGenerate} disabled={isLoading} className="w-full">
+        <Button onClick={handleGenerate} disabled={isLoading} className="w-full">
             {isLoading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -65,6 +71,11 @@ export function AIHeadlineGenerator({
             )}
             {isLoading ? 'Generating...' : 'Generate with AI'}
           </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="w-full" disabled={headlines.length === 0}>
+                View Suggestions ({headlines.length})
+            </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-72">
           <DropdownMenuLabel>Suggestions</DropdownMenuLabel>
