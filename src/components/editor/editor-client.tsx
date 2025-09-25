@@ -55,7 +55,7 @@ const createNewComponent = (type: ComponentType): PageComponent => {
     case 'Heading':
       return { id, type: 'Heading', props: { text: 'New Heading', level: 'h2', align: 'left' } };
     case 'Text':
-      return { id, type: 'Text', props: { text: 'This is a new text block. Click to edit.', align: 'left' } };
+      return { id, type: 'Text', props: { text: 'This is a new text block. Click to edit.', align: 'left', fontFamily: 'Inter', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' } };
     case 'Button':
       return { id, type: 'Button', props: { text: 'Click Me', href: '#', align: 'left' } };
     case 'Image':

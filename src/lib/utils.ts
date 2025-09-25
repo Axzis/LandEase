@@ -28,6 +28,10 @@ export function createDefaultPageContent(): PageContent {
           props: {
             text: "This is your starting point. Click on any element to edit it or drag new components from the left sidebar!",
             align: "center",
+            fontFamily: "Inter",
+            fontWeight: "normal",
+            fontStyle: "normal",
+            textDecoration: "none",
           },
         },
         {

@@ -30,6 +30,10 @@ export interface TextComponent extends BaseComponent {
   props: {
     text: string;
     align: 'left' | 'center' | 'right';
+    fontFamily: string;
+    fontWeight: 'normal' | 'bold';
+    fontStyle: 'normal' | 'italic';
+    textDecoration: 'none' | 'line-through';
   };
 }
 

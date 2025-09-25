@@ -5,15 +5,32 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { BaseInspector } from './base-inspector';
+import { Button } from '@/components/ui/button';
+import { Bold, Italic, Strikethrough } from 'lucide-react';
 
 interface TextInspectorProps {
   component: TextComponent;
   onUpdate: (id: string, newProps: Partial<TextComponent['props']>) => void;
 }
 
+const fontFamilies = [
+  'Inter',
+  'Arial',
+  'Helvetica',
+  'Times New Roman',
+  'Georgia',
+  'Courier New',
+  'Verdana',
+];
+
 export function TextInspector({ component, onUpdate }: TextInspectorProps) {
   const { id, props } = component;
-  const { text, align } = props;
+  const { text, align, fontFamily, fontWeight, fontStyle, textDecoration } = props;
+
+  const toggleStyle = (property: 'fontWeight' | 'fontStyle' | 'textDecoration', onValue: any, offValue: any) => {
+    const currentValue = props[property];
+    onUpdate(id, { [property]: currentValue === onValue ? offValue : onValue });
+  };
 
   return (
     <BaseInspector title="Text">
@@ -25,6 +42,47 @@ export function TextInspector({ component, onUpdate }: TextInspectorProps) {
           onChange={(e) => onUpdate(id, { text: e.target.value })}
           rows={5}
         />
+      </div>
+      
+      <div className="space-y-2">
+        <Label>Styling</Label>
+        <div className="flex gap-2">
+          <Button
+            variant={fontWeight === 'bold' ? 'secondary' : 'outline'}
+            size="icon"
+            onClick={() => toggleStyle('fontWeight', 'bold', 'normal')}
+          >
+            <Bold className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={fontStyle === 'italic' ? 'secondary' : 'outline'}
+            size="icon"
+            onClick={() => toggleStyle('fontStyle', 'italic', 'normal')}
+          >
+            <Italic className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={textDecoration === 'line-through' ? 'secondary' : 'outline'}
+            size="icon"
+            onClick={() => toggleStyle('textDecoration', 'line-through', 'none')}
+          >
+            <Strikethrough className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor={`fontFamily-${id}`}>Font Family</Label>
+        <Select value={fontFamily || 'Inter'} onValueChange={(value) => onUpdate(id, { fontFamily: value })}>
+          <SelectTrigger id={`fontFamily-${id}`}>
+            <SelectValue placeholder="Select font" />
+          </SelectTrigger>
+          <SelectContent>
+            {fontFamilies.map(font => (
+              <SelectItem key={font} value={font} style={{ fontFamily: font }}>{font}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-2">

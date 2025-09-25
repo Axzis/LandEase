@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { PageContent, PageComponent, ComponentType } from '@/lib/types';
@@ -16,7 +14,15 @@ const componentMap: { [key: string]: React.ComponentType<any> } = {
         const Tag = level as keyof JSX.IntrinsicElements;
         return <Tag className={cn('w-full', {'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })} {...rest}>{text}</Tag>;
     },
-    Text: ({ text, align, ...rest }) => <p className={cn('w-full', {'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })} {...rest}>{text}</p>,
+    Text: ({ text, align, fontFamily, fontWeight, fontStyle, textDecoration, ...rest }) => (
+        <p 
+            className={cn('w-full', {'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })}
+            style={{ fontFamily, fontWeight, fontStyle, textDecoration }}
+            {...rest}
+        >
+            {text}
+        </p>
+    ),
     Button: ({ text, href, align, ...rest }) => (
         <div className={cn('w-full', { 'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })} {...rest}>
             <a href={href} className="inline-block bg-primary text-primary-foreground px-4 py-2 rounded-md transition-colors duration-200 hover:bg-primary/90">{text}</a>
