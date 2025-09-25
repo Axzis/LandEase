@@ -1,8 +1,10 @@
-import { Heading1, Type, Image as ImageIcon, RectangleHorizontal, MousePointerClick } from 'lucide-react';
+import { Heading1, Type, Image as ImageIcon, RectangleHorizontal, MousePointerClick, PanelTop, PanelBottom } from 'lucide-react';
 import { ComponentType } from '@/lib/types';
 
 const components: { name: string; icon: JSX.Element; type: ComponentType }[] = [
   { name: 'Section', icon: <RectangleHorizontal />, type: 'Section' },
+  { name: 'Navbar', icon: <PanelTop />, type: 'Navbar' },
+  { name: 'Footer', icon: <PanelBottom />, type: 'Footer' },
   { name: 'Heading', icon: <Heading1 />, type: 'Heading' },
   { name: 'Text', icon: <Type />, type: 'Text' },
   { name: 'Button', icon: <MousePointerClick />, type: 'Button' },

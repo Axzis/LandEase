@@ -33,6 +33,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Rocket } from 'lucide-react';
 
 interface EditorClientProps {
   pageData: {
@@ -60,6 +61,10 @@ const createNewComponent = (type: ComponentType): PageComponent => {
       return { id, type: 'Button', props: { text: 'Click Me', href: '#', align: 'left' } };
     case 'Image':
       return { id, type: 'Image', props: { src: 'https://placehold.co/600x400', alt: 'Placeholder image' } };
+    case 'Navbar':
+      return { id, type: 'Navbar', props: { backgroundColor: '#FFFFFF' } };
+    case 'Footer':
+      return { id, type: 'Footer', props: { backgroundColor: '#1F2937' } };
     default:
       throw new Error(`Unknown component type: ${type}`);
   }
@@ -141,9 +146,11 @@ export function EditorClient({ pageData }: EditorClientProps) {
           return [...items, newComponent];
         }
         // Add before a specific root component
-        const newItems = [];
+        const newItems: PageComponent[] = [];
         for (const item of items) {
-          if (item.id === targetId) newItems.push(newComponent);
+          if (item.id === targetId) {
+            newItems.push(newComponent);
+          }
           newItems.push(item);
         }
         return newItems;
@@ -156,7 +163,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
           if (targetId === null) { // Add to end of section
             newChildren.push(newComponent);
           } else { // Add before specific component in section
-            const newChildrenWithTarget = [];
+            const newChildrenWithTarget: PageComponent[] = [];
             for (const child of newChildren) {
               if (child.id === targetId) newChildrenWithTarget.push(newComponent);
               newChildrenWithTarget.push(child);
@@ -165,7 +172,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
           }
           return { ...item, children: newChildren };
         } else if (item.children) {
-          return { ...item, children: addRecursively(item.children) };
+          return { ...item, children: addRecursively(item.children as PageComponent[]) };
         }
         return item;
       });
@@ -180,48 +187,63 @@ export function EditorClient({ pageData }: EditorClientProps) {
     if (draggedId === targetId) return;
 
     let componentToMove: PageComponent | null = null;
-    let contentAfterRemoval: PageComponent[] = [];
   
-    function removeComponent(items: PageComponent[], id: string): PageComponent[] {
-      return items.reduce((acc, item) => {
+    // Function to recursively find and remove a component
+    const removeComponent = (items: PageComponent[], id: string): PageComponent[] => {
+      return items.filter(item => {
         if (item.id === id) {
           componentToMove = item;
-          return acc;
+          return false; // Exclude the item
         }
         if (item.children) {
           item.children = removeComponent(item.children, id);
         }
-        acc.push(item);
-        return acc;
-      }, [] as PageComponent[]);
-    }
-  
-    contentAfterRemoval = removeComponent(JSON.parse(JSON.stringify(content)), draggedId);
-  
-    if (!componentToMove) return;
-  
-    function insertComponent(items: PageComponent[], tId: string): PageComponent[] {
-      // Special case: Dropping on a section adds to its children
-      const targetSection = items.find(item => item.id === tId && item.type === 'Section');
-      if (targetSection && targetSection.children) {
-        targetSection.children.push(componentToMove!);
-        return items;
-      }
-      
-      // Otherwise, insert before the target component
-      return items.reduce((acc, item) => {
-        if (item.id === tId) {
-          acc.push(componentToMove!);
-        }
-        if (item.children) {
-          item.children = insertComponent(item.children, tId);
-        }
-        acc.push(item);
-        return acc;
-      }, [] as PageComponent[]);
-    }
+        return true;
+      });
+    };
+
+    const contentAfterRemoval = removeComponent(JSON.parse(JSON.stringify(content)), draggedId);
     
-    const newContent = insertComponent(contentAfterRemoval, targetId);
+    if (!componentToMove) return; // Component to move not found
+
+    // Function to recursively find the target and insert the component
+    const insertComponent = (items: PageComponent[], tId: string): PageComponent[] => {
+        let inserted = false;
+        
+        // Check if target is a Section to drop into
+        const targetSection = items.find(item => item.id === tId && item.type === 'Section' && item.children);
+        if (targetSection) {
+            // Drop inside a section: just append it. A more refined logic could determine position.
+            targetSection.children!.push(componentToMove!);
+            inserted = true;
+            return items;
+        }
+
+        const newItems = items.reduce((acc, item) => {
+            if (item.id === tId) {
+                // Drop before the target component
+                acc.push(componentToMove!);
+                inserted = true;
+            }
+            if (item.children && !inserted) {
+                const newChildren = insertComponent(item.children, tId);
+                if (newChildren.length > item.children.length) inserted = true;
+                item.children = newChildren;
+            }
+            acc.push(item);
+            return acc;
+        }, [] as PageComponent[]);
+
+        return newItems;
+    };
+    
+    let newContent = insertComponent(contentAfterRemoval, targetId);
+
+    // If not inserted (e.g. target was not found), add to the end of root
+    const wasInserted = JSON.stringify(newContent).includes(draggedId);
+    if (!wasInserted) {
+        newContent.push(componentToMove);
+    }
     
     setContent(newContent);
     setIsDirty(true);

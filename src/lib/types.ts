@@ -1,4 +1,4 @@
-export type ComponentType = 'Section' | 'Heading' | 'Text' | 'Button' | 'Image';
+export type ComponentType = 'Section' | 'Heading' | 'Text' | 'Button' | 'Image' | 'Navbar' | 'Footer';
 
 export interface BaseComponent {
   id: string;
@@ -14,6 +14,22 @@ export interface SectionComponent extends BaseComponent {
     padding: string;
   };
   children: PageComponent[];
+}
+
+export interface NavbarComponent extends BaseComponent {
+  type: 'Navbar';
+  props: {
+    backgroundColor: string;
+  };
+  children?: undefined;
+}
+
+export interface FooterComponent extends BaseComponent {
+  type: 'Footer';
+  props: {
+    backgroundColor: string;
+  };
+  children?: undefined;
 }
 
 export interface HeadingComponent extends BaseComponent {
@@ -54,6 +70,6 @@ export interface ImageComponent extends BaseComponent {
   };
 }
 
-export type PageComponent = SectionComponent | HeadingComponent | TextComponent | ButtonComponent | ImageComponent;
+export type PageComponent = SectionComponent | HeadingComponent | TextComponent | ButtonComponent | ImageComponent | NavbarComponent | FooterComponent;
 
 export type PageContent = PageComponent[];

@@ -6,6 +6,8 @@ import { ButtonInspector } from './inspector-panels/button-inspector';
 import { ImageInspector } from './inspector-panels/image-inspector';
 import { SectionInspector } from './inspector-panels/section-inspector';
 import { PageInspector } from './inspector-panels/page-inspector';
+import { NavbarInspector } from './inspector-panels/navbar-inspector';
+import { FooterInspector } from './inspector-panels/footer-inspector';
 
 interface InspectorPanelProps {
   selectedComponent: PageComponent | null;
@@ -19,6 +21,8 @@ const inspectorMap = {
   Button: ButtonInspector,
   Image: ImageInspector,
   Section: SectionInspector,
+  Navbar: NavbarInspector,
+  Footer: FooterInspector,
 };
 
 export function InspectorPanel({ selectedComponent, onUpdateComponent, onClearSelection }: InspectorPanelProps) {
