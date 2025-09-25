@@ -62,9 +62,9 @@ const createNewComponent = (type: ComponentType): PageComponent => {
     case 'Image':
       return { id, type: 'Image', props: { src: 'https://placehold.co/600x400', alt: 'Placeholder image' } };
     case 'Navbar':
-      return { id, type: 'Navbar', props: { backgroundColor: '#FFFFFF' } };
+      return { id, type: 'Navbar', props: { backgroundColor: '#FFFFFF', logoText: 'LandEase', logoImageUrl: '', links: [{text: 'Home', href: '#'}, {text: 'About', href: '#'}, {text: 'Contact', href: '#'}] } };
     case 'Footer':
-      return { id, type: 'Footer', props: { backgroundColor: '#1F2937' } };
+      return { id, type: 'Footer', props: { backgroundColor: '#1F2937', copyrightText: `© ${new Date().getFullYear()} Your Company. All rights reserved.` } };
     default:
       throw new Error(`Unknown component type: ${type}`);
   }
@@ -207,45 +207,56 @@ export function EditorClient({ pageData }: EditorClientProps) {
     if (!componentToMove) return; // Component to move not found
 
     // Function to recursively find the target and insert the component
-    const insertComponent = (items: PageComponent[], tId: string): PageComponent[] => {
+    const insertComponent = (items: PageComponent[], tId: string, parentId: string | null): [PageComponent[], boolean] => {
         let inserted = false;
-        
-        // Check if target is a Section to drop into
-        const targetSection = items.find(item => item.id === tId && item.type === 'Section' && item.children);
-        if (targetSection) {
-            // Drop inside a section: just append it. A more refined logic could determine position.
-            targetSection.children!.push(componentToMove!);
-            inserted = true;
-            return items;
+
+        // Special case: Drop into a section
+        if (parentId) {
+             const newItems = items.map(item => {
+                if (item.id === parentId && item.children) {
+                    const newChildren: PageComponent[] = [];
+                    item.children.forEach(child => {
+                        if (child.id === tId) {
+                            newChildren.push(componentToMove!);
+                            inserted = true;
+                        }
+                        newChildren.push(child);
+                    });
+                     if (!inserted) {
+                        newChildren.push(componentToMove!);
+                        inserted = true;
+                    }
+                    return { ...item, children: newChildren };
+                } else if (item.children) {
+                     const [updatedChildren, wasInserted] = insertComponent(item.children, tId, parentId);
+                     if (wasInserted) inserted = true;
+                     return { ...item, children: updatedChildren };
+                }
+                return item;
+             });
+             return [newItems, inserted];
         }
 
-        const newItems = items.reduce((acc, item) => {
+        const newItems: PageComponent[] = [];
+        for (const item of items) {
             if (item.id === tId) {
-                // Drop before the target component
-                acc.push(componentToMove!);
+                newItems.push(componentToMove!);
                 inserted = true;
             }
-            if (item.children && !inserted) {
-                const newChildren = insertComponent(item.children, tId);
-                if (newChildren.length > item.children.length) inserted = true;
-                item.children = newChildren;
-            }
-            acc.push(item);
-            return acc;
-        }, [] as PageComponent[]);
+            newItems.push(item);
+        }
 
-        return newItems;
+        return [newItems, inserted];
     };
     
-    let newContent = insertComponent(contentAfterRemoval, targetId);
+    let [newContentWithInsert, wasInserted] = insertComponent(contentAfterRemoval, targetId, null);
 
-    // If not inserted (e.g. target was not found), add to the end of root
-    const wasInserted = JSON.stringify(newContent).includes(draggedId);
+    // If not inserted (e.g. target was not found or was a root drop), add to the end
     if (!wasInserted) {
-        newContent.push(componentToMove);
+        newContentWithInsert.push(componentToMove);
     }
     
-    setContent(newContent);
+    setContent(newContentWithInsert);
     setIsDirty(true);
   };
 

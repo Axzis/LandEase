@@ -30,25 +30,29 @@ const componentMap: { [key: string]: React.ComponentType<any> } = {
         </div>
     ),
     Image: ({ src, alt, ...rest }: { src: string, alt: string, [key: string]: any }) => <img src={src} alt={alt} className="max-w-full h-auto" {...rest} />,
-    Navbar: ({ backgroundColor, ...rest }: { backgroundColor: string, [key: string]: any }) => (
+    Navbar: ({ backgroundColor, logoText, logoImageUrl, links, ...rest }: { backgroundColor: string, logoText: string, logoImageUrl: string, links: {text: string, href: string}[], [key: string]: any }) => (
         <nav style={{ backgroundColor }} className="p-4" {...rest}>
             <div className="container mx-auto flex justify-between items-center">
-                <div className="flex items-center gap-2 text-xl font-bold">
-                    <Rocket className="w-6 h-6 text-primary" />
-                    <span>Logo</span>
-                </div>
+                <a href="#" className="flex items-center gap-2 text-xl font-bold">
+                    {logoImageUrl ? (
+                        <img src={logoImageUrl} alt={logoText} className="h-8" />
+                    ) : (
+                        <Rocket className="w-6 h-6 text-primary" />
+                    )}
+                    <span>{logoText}</span>
+                </a>
                 <div className="hidden md:flex items-center space-x-6">
-                    <a href="#" className="hover:text-primary">Home</a>
-                    <a href="#" className="hover:text-primary">About</a>
-                    <a href="#" className="hover:text-primary">Contact</a>
+                    {links.map((link, index) => (
+                        <a key={index} href={link.href} className="hover:text-primary">{link.text}</a>
+                    ))}
                 </div>
             </div>
         </nav>
     ),
-    Footer: ({ backgroundColor, ...rest }: { backgroundColor: string, [key: string]: any }) => (
+    Footer: ({ backgroundColor, copyrightText, ...rest }: { backgroundColor: string, copyrightText: string, [key: string]: any }) => (
         <footer style={{ backgroundColor }} className="p-8 text-gray-300" {...rest}>
             <div className="container mx-auto text-center">
-                <p>&copy; 2024 Your Company. All rights reserved.</p>
+                <p>{copyrightText}</p>
             </div>
         </footer>
     ),

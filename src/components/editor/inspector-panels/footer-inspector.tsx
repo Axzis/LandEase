@@ -12,7 +12,7 @@ interface FooterInspectorProps {
 
 export function FooterInspector({ component, onUpdate }: FooterInspectorProps) {
   const { id, props } = component;
-  const { backgroundColor } = props;
+  const { backgroundColor, copyrightText } = props;
 
   return (
     <BaseInspector title="Footer">
@@ -32,6 +32,14 @@ export function FooterInspector({ component, onUpdate }: FooterInspectorProps) {
             onChange={(e) => onUpdate(id, { backgroundColor: e.target.value })}
           />
         </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={`copyrightText-${id}`}>Copyright Text</Label>
+        <Input
+          id={`copyrightText-${id}`}
+          value={copyrightText}
+          onChange={(e) => onUpdate(id, { copyrightText: e.target.value })}
+        />
       </div>
     </BaseInspector>
   );

@@ -20,6 +20,9 @@ export interface NavbarComponent extends BaseComponent {
   type: 'Navbar';
   props: {
     backgroundColor: string;
+    logoText: string;
+    logoImageUrl: string;
+    links: { text: string; href: string }[];
   };
   children?: undefined;
 }
@@ -28,6 +31,7 @@ export interface FooterComponent extends BaseComponent {
   type: 'Footer';
   props: {
     backgroundColor: string;
+    copyrightText: string;
   };
   children?: undefined;
 }

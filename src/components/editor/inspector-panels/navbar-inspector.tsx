@@ -4,6 +4,9 @@ import { NavbarComponent } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BaseInspector } from './base-inspector';
+import { Button } from '@/components/ui/button';
+import { Plus, Trash2 } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 interface NavbarInspectorProps {
   component: NavbarComponent;
@@ -12,7 +15,24 @@ interface NavbarInspectorProps {
 
 export function NavbarInspector({ component, onUpdate }: NavbarInspectorProps) {
   const { id, props } = component;
-  const { backgroundColor } = props;
+  const { backgroundColor, logoText, logoImageUrl, links = [] } = props;
+
+  const handleLinkChange = (index: number, field: 'text' | 'href', value: string) => {
+    const newLinks = [...links];
+    newLinks[index] = { ...newLinks[index], [field]: value };
+    onUpdate(id, { links: newLinks });
+  };
+
+  const handleAddLink = () => {
+    const newLinks = [...links, { text: 'New Link', href: '#' }];
+    onUpdate(id, { links: newLinks });
+  };
+
+  const handleRemoveLink = (index: number) => {
+    const newLinks = links.filter((_, i) => i !== index);
+    onUpdate(id, { links: newLinks });
+  };
+
 
   return (
     <BaseInspector title="Navbar">
@@ -33,6 +53,65 @@ export function NavbarInspector({ component, onUpdate }: NavbarInspectorProps) {
           />
         </div>
       </div>
+      
+      <Separator />
+
+      <div className="space-y-2">
+        <Label htmlFor={`logoText-${id}`}>Logo Text</Label>
+        <Input
+          id={`logoText-${id}`}
+          value={logoText}
+          onChange={(e) => onUpdate(id, { logoText: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor={`logoImageUrl-${id}`}>Logo Image URL (optional)</Label>
+        <Input
+          id={`logoImageUrl-${id}`}
+          value={logoImageUrl}
+          onChange={(e) => onUpdate(id, { logoImageUrl: e.target.value })}
+          placeholder="https://example.com/logo.png"
+        />
+      </div>
+
+      <Separator />
+
+      <div className="space-y-4">
+        <Label>Navigation Links</Label>
+        {links.map((link, index) => (
+          <div key={index} className="p-3 border rounded-lg space-y-2 relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-1 right-1 h-6 w-6"
+              onClick={() => handleRemoveLink(index)}
+            >
+              <Trash2 className="w-4 h-4 text-destructive" />
+            </Button>
+            <div className="space-y-1">
+              <Label htmlFor={`link-text-${id}-${index}`} className="text-xs">Text</Label>
+              <Input
+                id={`link-text-${id}-${index}`}
+                value={link.text}
+                onChange={(e) => handleLinkChange(index, 'text', e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor={`link-href-${id}-${index}`} className="text-xs">URL</Label>
+              <Input
+                id={`link-href-${id}-${index}`}
+                value={link.href}
+                onChange={(e) => handleLinkChange(index, 'href', e.target.value)}
+              />
+            </div>
+          </div>
+        ))}
+         <Button variant="outline" className="w-full" onClick={handleAddLink}>
+          <Plus className="mr-2 h-4 w-4" /> Add Link
+        </Button>
+      </div>
+
     </BaseInspector>
   );
 }
