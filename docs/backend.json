@@ -1,0 +1,108 @@
+{
+  "entities": {
+    "Submission": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Submission",
+      "type": "object",
+      "description": "Represents a form submission from the frontend.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the submission."
+        },
+        "pageName": {
+          "type": "string",
+          "description": "The name of the page where the form was submitted.  Used to categorize submissions."
+        },
+        "submittedData": {
+          "type": "string",
+          "description": "JSON string containing the submitted form data."
+        },
+        "submissionDate": {
+          "type": "string",
+          "description": "The date and time when the form was submitted.",
+          "format": "date-time"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Submission)"
+        }
+      },
+      "required": [
+        "id",
+        "pageName",
+        "submittedData",
+        "submissionDate",
+        "userId"
+      ]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the LandEase application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        }
+      },
+      "required": [
+        "id",
+        "email"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles, indexed by their unique Firebase Auth ID.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique ID of the user, matching their Firebase Auth UID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/submissions/{submissionId}",
+        "definition": {
+          "entityName": "Submission",
+          "schema": {
+            "$ref": "#/backend/entities/Submission"
+          },
+          "description": "Stores form submissions, with a pageName field, for categorization.  Each submission is associated with a specific user. Authorization Independence is achieved through path-based ownership.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique ID of the user who submitted the form."
+            },
+            {
+              "name": "submissionId",
+              "description": "The unique ID of the form submission."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to store form submissions associated with different pages, ensuring data isolation and easy retrieval based on the page name. User data is stored separately. The structure prioritizes Authorization Independence by storing all submissions under a user-specific path, making security rules straightforward and efficient, based solely on `request.auth.uid`. This approach enables the required QAPs by securing access to submissions based on user ownership and allowing efficient querying for submissions associated with a given page. The design employs Structural Segregation by separating user data from submission data and organizing submissions under user-specific collections. Data clarity is maintained through explicit field names and the use of standard data types."
+  }
+}
