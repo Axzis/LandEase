@@ -1,4 +1,5 @@
 
+
 import { EditorCanvas } from './editor-canvas';
 import { PageContent, PageComponent, ComponentType } from '@/lib/types';
 
@@ -19,14 +20,16 @@ export function Canvas({ content, onSelectComponent, selectedComponentId, onDele
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation(); // Prevent drop from bubbling to child wrappers
+    if (e.target !== e.currentTarget) {
+        // This drop should be handled by a nested ComponentWrapper, not the main canvas.
+        return;
+    }
+
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
       if (data.type === 'new-component') {
-        // Dropping on the canvas background adds the component to the end of the page
+        // Dropping on the canvas background adds the component to the end of the page at root level.
         onAddComponent(data.componentType, null, null);
-      } else if (data.type === 'move-component') {
-        // This case might be complex; for now, we handle adding new components.
-        // A proper implementation might involve finding the last element and dropping after it.
       }
     } catch(err) {
       console.error("Invalid drop data on canvas:", err);

@@ -51,13 +51,17 @@ export function ComponentWrapper({
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDraggedOver(true);
     
-    // For non-section components, determine if dropping above or below
-    if (type !== 'Section') {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const midpoint = rect.top + rect.height / 2;
-      setDropPosition(e.clientY < midpoint ? 'top' : 'bottom');
+    const dragData = e.dataTransfer.types;
+    if (dragData.includes('text/plain')) {
+      setIsDraggedOver(true);
+      if (type !== 'Section') {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const midpoint = rect.top + rect.height / 2;
+        setDropPosition(e.clientY < midpoint ? 'top' : 'bottom');
+      } else {
+        setDropPosition(null);
+      }
     }
   };
 
@@ -76,15 +80,33 @@ export function ComponentWrapper({
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
       
-      const dropTargetId = (type === 'Section' && dropPosition === null) ? id : id;
-      
       if (data.type === 'new-component') {
-        const parentId = type === 'Section' ? id : null;
-        // If dropping on a section, targetId is null (append). If dropping on another component, it is the component's id (insert before).
-        const targetIdForNew = type === 'Section' ? null : id;
-        onAddComponent(data.componentType, parentId, targetIdForNew);
+        let parentId: string | null = null;
+        let targetId: string | null = id; // Default to inserting before the current component
+
+        if (type === 'Section') {
+          // Dropping inside a section
+          parentId = id;
+          targetId = null; // Append to the end of the section
+        } else {
+            // Dropping on a regular component, insert before it at the root
+            if (dropPosition === 'bottom') {
+                console.warn("Dropping at the bottom of a non-section component is not fully supported yet. Placing before.");
+                // A more complex logic would be needed to find the 'next' sibling and insert before it.
+                // For now, we'll just insert before the current one.
+            }
+        }
+        
+        onAddComponent(data.componentType, parentId, targetId);
+
       } else if (data.type === 'move-component') {
-        onMoveComponent(data.componentId, dropTargetId);
+        let targetIdForMove = id;
+        if (type === 'Section' && data.componentId !== id) {
+          // If we drop a component ON a section, we mean to drop it INSIDE
+          // So we don't move it before the section, but add it as a child.
+          // This requires a different logic, for now we let it fall through to onMoveComponent.
+        }
+        onMoveComponent(data.componentId, targetIdForMove);
       }
     } catch (err) {
         console.error("Invalid drop data", err);
@@ -113,7 +135,7 @@ export function ComponentWrapper({
           )}></div>
       )}
       {isSelected && (
-        <div className="absolute -top-8 left-0 flex items-center bg-primary text-primary-foreground p-1 rounded-md shadow-lg z-10 cursor-default" onClick={e => e.stopPropagation()} onDragStart={e => e.stopPropagation()}>
+        <div className="absolute -top-8 left-0 flex items-center bg-primary text-primary-foreground p-1 rounded-md shadow-lg z-10 cursor-default" onClick={e => e.stopPropagation()}>
            <span className="text-xs font-semibold px-2">{type}</span>
           <div className="cursor-grab" onDragStart={handleDragStart} draggable>
             <GripVertical className="w-4 h-4 text-primary-foreground hover:bg-primary/80" />
