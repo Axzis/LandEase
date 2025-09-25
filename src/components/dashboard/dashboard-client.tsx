@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
-import { useAuth, useFirestore, useUser } from '@/firebase';
+import { useAuth, useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
@@ -60,22 +60,48 @@ export function DashboardClient() {
   const handleCreatePage = async () => {
     if (!user) return;
     setIsCreatingPage(true);
+
+    const pagesCollectionRef = collection(firestore, 'pages');
+    const newPageData = {
+      userId: user.uid,
+      pageName: 'Untitled Page',
+      content: createDefaultPageContent(),
+      createdAt: serverTimestamp(),
+      lastUpdated: serverTimestamp(),
+      published: false,
+    };
+
     try {
-      const newPageRef = await addDoc(collection(firestore, 'pages'), {
-        userId: user.uid,
-        pageName: 'Untitled Page',
-        content: createDefaultPageContent(),
-        createdAt: serverTimestamp(),
-        lastUpdated: serverTimestamp(),
-        published: false,
-      });
+      const newPageRef = await addDoc(pagesCollectionRef, newPageData);
       toast({ title: "Page created!", description: "Redirecting to the editor..." });
       router.push(`/editor/${newPageRef.id}`);
     } catch (error) {
-      console.error("Error creating page: ", error);
-      toast({ variant: "destructive", title: "Error", description: "Could not create a new page." });
-      setIsCreatingPage(false);
+       // This catch block is now primarily for non-permission errors,
+       // but we check and emit a contextual error just in case.
+       // The more specific error handling is now in the .catch of the promise.
+       toast({ variant: "destructive", title: "Error", description: "Could not create a new page." });
+       setIsCreatingPage(false);
     }
+
+    addDoc(pagesCollectionRef, newPageData)
+      .then(docRef => {
+        toast({ title: "Page created!", description: "Redirecting to the editor..." });
+        router.push(`/editor/${docRef.id}`);
+      })
+      .catch(error => {
+        const permissionError = new FirestorePermissionError({
+            path: pagesCollectionRef.path,
+            operation: 'create',
+            requestResourceData: newPageData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        
+        // Also provide immediate feedback to the user
+        toast({ variant: "destructive", title: "Creation Failed", description: "You don't have permission to create a new page. Check the console for details." });
+      })
+      .finally(() => {
+        setIsCreatingPage(false);
+      });
   };
 
   const handleSignOut = async () => {
