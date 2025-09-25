@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -37,13 +37,7 @@ import { Rocket } from 'lucide-react';
 import { firebaseConfig } from '@/firebase/config';
 
 interface EditorClientProps {
-  pageData: {
-    id: string;
-    pageName: string;
-    content: PageContent;
-    published?: boolean;
-    pageBackgroundColor?: string;
-  };
+  pageId: string;
 }
 
 const generateId = () => `comp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -77,17 +71,30 @@ const createNewComponent = (type: ComponentType): PageComponent => {
 };
 
 
-export function EditorClient({ pageData }: EditorClientProps) {
-  const [pageName, setPageName] = useState(pageData.pageName);
-  const [content, setContent] = useState<PageContent>(pageData.content);
-  const [isPublished, setIsPublished] = useState(pageData.published || false);
-  const [pageBackgroundColor, setPageBackgroundColor] = useState(pageData.pageBackgroundColor || '#FFFFFF');
+export function EditorClient({ pageId }: EditorClientProps) {
+  const firestore = useFirestore();
+  const pageDocRef = useMemoFirebase(() => firestore ? doc(firestore, 'pages', pageId) : null, [firestore, pageId]);
+  const { data: pageData, isLoading: isPageLoading, error: pageError } = useDoc(pageDocRef);
+
+  const [pageName, setPageName] = useState('');
+  const [content, setContent] = useState<PageContent>([]);
+  const [isPublished, setIsPublished] = useState(false);
+  const [pageBackgroundColor, setPageBackgroundColor] = useState('#FFFFFF');
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
-  const firestore = useFirestore();
+  
+  useEffect(() => {
+    if (pageData) {
+      setPageName(pageData.pageName || '');
+      setContent(pageData.content || []);
+      setIsPublished(pageData.published || false);
+      setPageBackgroundColor(pageData.pageBackgroundColor || '#FFFFFF');
+    }
+  }, [pageData]);
+
 
   // Keyboard shortcut for deleting component
   useEffect(() => {
@@ -357,7 +364,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const pageRef = doc(firestore, 'pages', pageData.id);
+      const pageRef = doc(firestore, 'pages', pageId);
       await updateDoc(pageRef, {
         pageName,
         content: JSON.parse(JSON.stringify(content)),
@@ -384,7 +391,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
   const handlePublishToggle = async (published: boolean) => {
     setIsSaving(true);
     try {
-      const pageRef = doc(firestore, 'pages', pageData.id);
+      const pageRef = doc(firestore, 'pages', pageId);
       await updateDoc(pageRef, {
         published,
         lastUpdated: serverTimestamp(),
@@ -410,8 +417,28 @@ export function EditorClient({ pageData }: EditorClientProps) {
 
   useEffect(() => {
     // This now runs only on the client, after the component has mounted
-    setPublicUrl(`${window.location.origin}/p/${pageData.id}`);
-  }, [pageData.id]);
+    setPublicUrl(`${window.location.origin}/p/${pageId}`);
+  }, [pageId]);
+
+  if (isPageLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (pageError) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+          <div className="text-center">
+              <h2 className="text-2xl font-bold text-destructive mb-2">Error Loading Page</h2>
+              <p className="text-muted-foreground">Could not load page data. You may not have permission to view this page, or it may not exist.</p>
+              <Button onClick={() => router.push('/dashboard')} className="mt-4">Go to Dashboard</Button>
+          </div>
+      </div>
+    )
+  }
 
 
   return (
