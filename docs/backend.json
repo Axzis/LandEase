@@ -1,55 +1,28 @@
 {
   "entities": {
-    "Submission": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Submission",
-      "type": "object",
-      "description": "Represents a form submission from the frontend.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the submission."
-        },
-        "pageId": {
-          "type": "string",
-          "description": "The ID of the page where the form was submitted."
-        },
-        "pageName": {
-          "type": "string",
-          "description": "The name of the page where the form was submitted. Used to categorize submissions."
-        },
-        "formData": {
-          "type": "object",
-          "description": "Object containing the submitted form data."
-        },
-        "submittedAt": {
-          "type": "string",
-          "description": "The date and time when the form was submitted.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "pageId",
-        "pageName",
-        "formData",
-        "submittedAt"
-      ]
-    },
     "User": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
       "description": "Represents a user of the LandEase application.",
       "properties": {
-        "id": {
+        "uid": {
           "type": "string",
-          "description": "Unique identifier for the user."
+          "description": "Unique identifier for the user, matching Firebase Auth UID."
         },
         "email": {
           "type": "string",
           "description": "Email address of the user.",
           "format": "email"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The display name of the user."
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The timestamp when the user was created."
         },
         "pages": {
             "type": "array",
@@ -64,16 +37,48 @@
             }
         }
       },
-      "required": [
-        "id",
-        "email"
-      ]
+      "required": [ "uid", "email", "createdAt" ]
+    },
+    "Page": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Page",
+        "type": "object",
+        "description": "Represents a single landing page created by a user.",
+        "properties": {
+            "userId": {
+                "type": "string",
+                "description": "The UID of the user who owns this page."
+            },
+            "pageName": {
+                "type": "string",
+                "description": "The name of the landing page."
+            },
+            "content": {
+                "type": "array",
+                "description": "The JSON structure representing the page's components."
+            },
+            "createdAt": {
+                "type": "string",
+                "format": "date-time"
+            },
+            "lastUpdated": {
+                "type": "string",
+                "format": "date-time"
+            },
+            "published": {
+                "type": "boolean",
+                "description": "Indicates if the page is publicly accessible."
+            },
+            "pageBackgroundColor": {
+                "type": "string"
+            }
+        },
+        "required": ["userId", "pageName", "content", "published"]
     }
   },
   "auth": {
     "providers": [
-      "password",
-      "anonymous"
+      "password"
     ]
   },
   "firestore": {
@@ -83,35 +88,19 @@
         "definition": {
           "entityName": "User",
           "schema": {
-            "$ref": "#/backend/entities/User"
+            "$ref": "#/entities/User"
           },
-          "description": "Stores user profiles, indexed by their unique Firebase Auth ID.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique ID of the user, matching their Firebase Auth UID."
-            }
-          ]
+          "description": "Stores user profiles, indexed by their unique Firebase Auth ID."
         }
       },
       {
-        "path": "/users/{userId}/submissions/{submissionId}",
+        "path": "/pages/{pageId}",
         "definition": {
-          "entityName": "Submission",
+          "entityName": "Page",
           "schema": {
-            "$ref": "#/backend/entities/Submission"
+            "$ref": "#/entities/Page"
           },
-          "description": "Stores form submissions for a specific user. Each submission is associated with a page.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique ID of the user who owns the page and submissions."
-            },
-            {
-              "name": "submissionId",
-              "description": "The unique ID of the form submission."
-            }
-          ]
+          "description": "Stores all landing pages created by users."
         }
       }
     ]
