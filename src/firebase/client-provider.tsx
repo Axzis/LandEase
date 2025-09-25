@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useMemo, type ReactNode } from 'react';
-import { FirebaseProvider } from '@/firebase/provider';
+import { AuthProvider, FirebaseProvider } from '@/firebase/provider';
 import { initializeFirebase } from '@/firebase';
 import { Loader2 } from 'lucide-react';
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 interface FirebaseClientProviderProps {
   children: ReactNode;
@@ -29,7 +30,10 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
       auth={firebaseServices.auth}
       firestore={firebaseServices.firestore}
     >
-      {children}
+        <AuthProvider>
+            <FirebaseErrorListener />
+            {children}
+        </AuthProvider>
     </FirebaseProvider>
   );
 }
