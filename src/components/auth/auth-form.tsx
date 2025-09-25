@@ -26,6 +26,9 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { createDefaultPageContent } from '@/lib/utils';
+import { FirebaseError } from 'firebase/app';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
@@ -63,22 +66,38 @@ export function AuthForm({ mode }: AuthFormProps) {
         const user = userCredential.user;
         await updateProfile(user, { displayName: values.name });
         
-        // Create user document
-        await setDoc(doc(firestore, "users", user.uid), {
-            uid: user.uid,
-            email: user.email,
-            displayName: values.name,
-            createdAt: serverTimestamp(),
+        const userDocData = {
+          uid: user.uid,
+          email: user.email,
+          displayName: values.name,
+          createdAt: serverTimestamp(),
+        };
+        
+        // Create user document non-blockingly
+        const userDocRef = doc(firestore, "users", user.uid);
+        setDoc(userDocRef, userDocData).catch(error => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: userDocRef.path,
+            operation: 'create',
+            requestResourceData: userDocData
+          }))
         });
 
-        // Create a default page for the new user
-        await addDoc(collection(firestore, 'pages'), {
+        // Create a default page for the new user non-blockingly
+        const defaultPageData = {
             userId: user.uid,
             pageName: 'My First Page',
             content: createDefaultPageContent(),
             createdAt: serverTimestamp(),
             lastUpdated: serverTimestamp(),
             published: false,
+        };
+        addDoc(collection(firestore, 'pages'), defaultPageData).catch(error => {
+           errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'pages',
+            operation: 'create',
+            requestResourceData: defaultPageData,
+          }))
         });
         
         toast({ title: "Account created successfully!" });
