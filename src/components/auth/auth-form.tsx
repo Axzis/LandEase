@@ -27,8 +27,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { createDefaultPageContent } from '@/lib/utils';
 import { FirebaseError } from 'firebase/app';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { errorEmitter } from '@/firebase';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
@@ -73,17 +71,14 @@ export function AuthForm({ mode }: AuthFormProps) {
           createdAt: serverTimestamp(),
         };
         
-        // Create user document non-blockingly
+        // Create user document
         const userDocRef = doc(firestore, "users", user.uid);
         setDoc(userDocRef, userDocData).catch(error => {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: userDocRef.path,
-            operation: 'create',
-            requestResourceData: userDocData
-          }))
+          console.error("Error creating user document:", error);
+          // Non-critical, so we don't block UI. Just log it.
         });
 
-        // Create a default page for the new user non-blockingly
+        // Create a default page for the new user
         const defaultPageData = {
             userId: user.uid,
             pageName: 'My First Page',
@@ -94,11 +89,8 @@ export function AuthForm({ mode }: AuthFormProps) {
         };
         const pagesCollectionRef = collection(firestore, 'pages');
         addDoc(pagesCollectionRef, defaultPageData).catch(error => {
-           errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: pagesCollectionRef.path,
-            operation: 'create',
-            requestResourceData: defaultPageData,
-          }))
+           console.error("Error creating default page:", error);
+           // Also non-critical for the auth flow itself.
         });
         
         toast({ title: "Account created successfully!" });

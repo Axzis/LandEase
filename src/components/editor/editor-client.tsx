@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { useFirestore, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError, useUser } from '@/firebase';
+import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -73,7 +73,6 @@ export function EditorClient({ pageId }: EditorClientProps) {
   const firestore = useFirestore();
   const { user, loading: isUserLoading } = useUser();
   const pageDocRef = useMemoFirebase(() => {
-    // Wait for both firestore and user to be available
     if (!firestore || !user) return null;
     return doc(firestore, 'pages', pageId);
   }, [firestore, pageId, user]);
@@ -384,16 +383,11 @@ export function EditorClient({ pageId }: EditorClientProps) {
         setIsDirty(false);
       })
       .catch((error) => {
-        const permissionError = new FirestorePermissionError({
-            path: pageDocRef.path,
-            operation: 'update',
-            requestResourceData: dataToSave,
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        console.error("Save failed:", error);
         toast({
             variant: 'destructive',
             title: 'Save Failed',
-            description: 'Could not save your changes. Please check permissions.',
+            description: 'Could not save your changes. Please try again.',
         });
       })
       .finally(() => {
@@ -419,16 +413,11 @@ export function EditorClient({ pageId }: EditorClientProps) {
         });
       })
       .catch((error) => {
-        const permissionError = new FirestorePermissionError({
-            path: pageDocRef.path,
-            operation: 'update',
-            requestResourceData: dataToUpdate,
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        console.error("Publish toggle failed:", error);
         toast({
           variant: "destructive",
           title: "Update Failed",
-          description: "Could not update publish status. Check permissions."
+          description: "Could not update publish status. Please try again."
         });
       })
       .finally(() => {
@@ -451,11 +440,13 @@ export function EditorClient({ pageId }: EditorClientProps) {
   }
 
   if (pageError) {
+    // With open rules, this error is less likely to be a permission issue
+    // but could be a network error or other client-side issue.
     return (
       <div className="flex h-screen w-full items-center justify-center">
           <div className="text-center p-4">
               <h2 className="text-2xl font-bold text-destructive mb-2">Error Loading Page</h2>
-              <p className="text-muted-foreground max-w-md mx-auto">Could not load page data. This can happen if you don't have permission or if the page was deleted.</p>
+              <p className="text-muted-foreground max-w-md mx-auto">Could not load page data. Please check your internet connection and try again. If the problem persists, the page may have been deleted.</p>
               <Button onClick={() => router.push('/dashboard')} className="mt-4">Go to Dashboard</Button>
           </div>
       </div>
@@ -578,5 +569,3 @@ export function EditorClient({ pageId }: EditorClientProps) {
     </TooltipProvider>
   );
 }
-
-    

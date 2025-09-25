@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
-import { useAuth, useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useAuth, useFirestore, useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
@@ -77,21 +77,11 @@ export function DashboardClient() {
         router.push(`/editor/${docRef.id}`);
       })
       .catch((error) => {
-        // Create the rich, contextual error
-        const permissionError = new FirestorePermissionError({
-          path: pagesCollectionRef.path,
-          operation: 'create',
-          requestResourceData: newPageData,
-        });
-        
-        // Emit the error for the dev overlay
-        errorEmitter.emit('permission-error', permissionError);
-        
-        // Also provide immediate feedback to the user in the UI
+        console.error("Page creation failed:", error);
         toast({
           variant: "destructive",
           title: "Creation Failed",
-          description: "You don't have permission to create a page. Check the developer console for details."
+          description: "Could not create a new page. Please try again."
         });
       })
       .finally(() => {
