@@ -14,6 +14,9 @@ function getSdks(firebaseApp: FirebaseApp) {
 }
 
 export function initializeFirebase() {
+  if (!firebaseConfig) {
+    return null;
+  }
   if (getApps().length) {
     return getSdks(getApp());
   }
