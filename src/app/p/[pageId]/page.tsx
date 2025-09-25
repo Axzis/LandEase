@@ -4,48 +4,65 @@ import { useState, useEffect } from 'react';
 import { EditorCanvas } from '@/components/editor/editor-canvas';
 import { Loader2 } from 'lucide-react';
 import type { PageContent } from '@/lib/types';
+import { doc, getDoc } from 'firebase/firestore';
+import { initializeFirebase } from '@/firebase';
 
-// This interface must match the structure saved in editor-client.tsx
-interface PagePreviewData {
+interface PageData {
   content: PageContent;
   pageName: string;
   pageBackgroundColor?: string;
+  published?: boolean;
 }
 
 export default function PublicPage({ params }: { params: { pageId: string } }) {
   const { pageId } = params;
-  const [pageData, setPageData] = useState<PagePreviewData | null>(null);
+  const [pageData, setPageData] = useState<PageData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setIsLoading(true);
-    try {
-      // This page ONLY works by reading preview data from localStorage.
-      // It does NOT connect to Firebase.
-      const previewDataString = localStorage.getItem(`preview_${pageId}`);
-      if (previewDataString) {
-        const previewData: PagePreviewData = JSON.parse(previewDataString);
-        setPageData(previewData);
-      } else {
-        setError("Halaman tidak ditemukan. Pastikan Anda telah menyimpan perubahan di editor untuk mengaktifkan pratinjau langsung.");
-      }
-    } catch (e) {
-      console.error("Could not read preview data from localStorage", e);
-      setError("Gagal memuat data pratinjau dari penyimpanan lokal.");
-    } finally {
+    if (!pageId) {
+      setError('ID halaman tidak valid.');
       setIsLoading(false);
+      return;
     }
-    
-    // We only run this once on mount.
+
+    const fetchPageData = async () => {
+      setIsLoading(true);
+      try {
+        // Inisialisasi Firebase di sisi klien
+        const { firestore } = initializeFirebase();
+        const pageRef = doc(firestore, 'pages', pageId);
+        const docSnap = await getDoc(pageRef);
+
+        if (docSnap.exists()) {
+          const data = docSnap.data() as PageData;
+          // Periksa apakah halaman sudah dipublikasikan
+          if (data.published) {
+            setPageData(data);
+          } else {
+            setError('Halaman ini belum dipublikasikan.');
+          }
+        } else {
+          setError('Halaman tidak ditemukan.');
+        }
+      } catch (e) {
+        console.error('Gagal mengambil data halaman:', e);
+        setError('Terjadi kesalahan saat memuat halaman.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPageData();
   }, [pageId]);
 
   if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
-        <div className='text-center'>
-            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-            <p className='text-muted-foreground'>Memuat pratinjau...</p>
+        <div className="text-center">
+          <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Memuat halaman...</p>
         </div>
       </div>
     );
@@ -53,12 +70,12 @@ export default function PublicPage({ params }: { params: { pageId: string } }) {
 
   if (error || !pageData) {
     return (
-        <div className="flex h-screen w-full items-center justify-center bg-background">
-            <div className='text-center p-4'>
-                <h1 className='text-2xl font-bold'>Pratinjau Tidak Tersedia</h1>
-                <p className='text-muted-foreground max-w-md'>{error}</p>
-            </div>
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <div className="p-4 text-center">
+          <h1 className="text-2xl font-bold">Halaman Tidak Tersedia</h1>
+          <p className="max-w-md text-muted-foreground">{error}</p>
         </div>
+      </div>
     );
   }
 
