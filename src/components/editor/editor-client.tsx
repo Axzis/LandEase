@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { useFirestore, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useFirestore, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -71,7 +71,13 @@ const createNewComponent = (type: ComponentType): PageComponent => {
 
 export function EditorClient({ pageId }: EditorClientProps) {
   const firestore = useFirestore();
-  const pageDocRef = useMemoFirebase(() => firestore ? doc(firestore, 'pages', pageId) : null, [firestore, pageId]);
+  const { user, loading: isUserLoading } = useUser();
+  const pageDocRef = useMemoFirebase(() => {
+    // Wait for both firestore and user to be available
+    if (!firestore || !user) return null;
+    return doc(firestore, 'pages', pageId);
+  }, [firestore, pageId, user]);
+
   const { data: pageData, isLoading: isPageLoading, error: pageError } = useDoc(pageDocRef);
 
   const [pageName, setPageName] = useState('');
@@ -436,7 +442,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
     setPublicUrl(`${window.location.origin}/p/${pageId}`);
   }, [pageId]);
 
-  if (isPageLoading) {
+  if (isUserLoading || (isPageLoading && pageDocRef)) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
