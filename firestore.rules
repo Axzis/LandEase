@@ -1,121 +1,92 @@
 /**
- * @fileoverview Firestore Security Rules for LandEase Prototyping.
+ * @fileoverview Firestore Security Rules for LandEase.
  *
- * Core Philosophy:
- * This ruleset employs a strict user-ownership model. Users can only read and
- * write data under their own user ID. This approach prioritizes data privacy
- * and prevents unauthorized access. All writes must be authenticated.
+ * Core Philosophy: This ruleset enforces a strict user-ownership model,
+ * ensuring that only authenticated users can access their own data. It prioritizes
+ * simplicity and security by validating ownership at each level of the data hierarchy.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profiles, accessible only to the owning user.
- * - /users/{userId}/submissions/{submissionId}: Stores form submissions, accessible only to the owning user.
+ * - /users/{userId}: Stores user profiles, with the userId matching the Firebase Auth UID.
+ * - /users/{userId}/submissions/{submissionId}: Stores form submissions for a specific user.
  *
  * Key Security Decisions:
- * - Users can only manage data associated with their own userId.
- * - Public listing of users or submissions is disallowed.
+ * - User listing is disallowed.
+ * - All write operations are restricted to the owner of the data.
+ * - The rules explicitly deny any ambiguous or unhandled access patterns.
  *
  * Denormalization for Authorization:
- *  - The `userId` is present both in the path (`/users/{userId}`) and potentially as a field within documents
- *    under that path. This allows for simple, efficient ownership checks.
+ * - The 'id' field inside the User and Submission documents is used to match the path. This ensures a user cannot create a document under another user's ID.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the request is authenticated.
-     * @return {boolean} True if the user is signed in, false otherwise.
-     */
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    /**
-     * @description Checks if the authenticated user is the owner of the resource.
-     * @param {string} userId The user ID to compare against the authenticated user's ID.
-     * @return {boolean} True if the user is the owner, false otherwise.
-     */
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    /**
-     * @description Checks if the authenticated user is the owner of the resource and it exists.
-     * @param {string} userId The user ID to compare against the authenticated user's ID.
-     * @return {boolean} True if the user is the owner and the resource exists, false otherwise.
-     */
-    function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-    }
-
-    /**
-     * @description Enforces user-specific data access.
+     * @description Protects user profiles.
      * @path /users/{userId}
-     * @allow (create) - User with UID 'user123' can create their own profile document.
-     *   Request: { auth: { uid: 'user123' }, method: 'create', path: '/databases/(default)/documents/users/user123', resource: { data: { id: 'user123', email: 'user123@example.com' } } }
-     * @allow (get) - User with UID 'user123' can read their own profile document.
-     *   Request: { auth: { uid: 'user123' }, method: 'get', path: '/databases/(default)/documents/users/user123' }
-     * @allow (update) - User with UID 'user123' can update their own profile document.
-     *   Request: { auth: { uid: 'user123' }, method: 'update', path: '/databases/(default)/documents/users/user123', resource: { data: { id: 'user123', email: 'newemail@example.com' } } }
-     * @allow (delete) - User with UID 'user123' can delete their own profile document.
-     *   Request: { auth: { uid: 'user123' }, method: 'delete', path: '/databases/(default)/documents/users/user123' }
-     * @deny (create) - User with UID 'user456' cannot create a profile document for user 'user123'.
-     *   Request: { auth: { uid: 'user456' }, method: 'create', path: '/databases/(default)/documents/users/user123', resource: { data: { id: 'user123', email: 'user123@example.com' } } }
-     * @deny (get) - User with UID 'user456' cannot read the profile document for user 'user123'.
-     *   Request: { auth: { uid: 'user456' }, method: 'get', path: '/databases/(default)/documents/users/user123' }
-     * @deny (update) - User with UID 'user456' cannot update the profile document for user 'user123'.
-     *   Request: { auth: { uid: 'user456' }, method: 'update', path: '/databases/(default)/documents/users/user123', resource: { data: { id: 'user123', email: 'newemail@example.com' } } }
-     * @deny (delete) - User with UID 'user456' cannot delete the profile document for user 'user123'.
-     *   Request: { auth: { uid: 'user456' }, method: 'delete', path: '/databases/(default)/documents/users/user123' }
+     * @allow (create) - If the user is creating their own profile (auth.uid == userId).
+     * @allow (get) - If the user is requesting their own profile (auth.uid == userId).
+     * @allow (update) - If the user is updating their own profile (auth.uid == userId).
+     * @allow (delete) - If the user is deleting their own profile (auth.uid == userId).
+     * @deny (list) - Prevents listing of all users.
+     * @deny (create) - If the user is attempting to create a profile for another user (auth.uid != userId).
+     * @deny (get) - If the user is attempting to read another user's profile (auth.uid != userId).
+     * @deny (update) - If the user is attempting to update another user's profile (auth.uid != userId).
+     * @deny (delete) - If the user is attempting to delete another user's profile (auth.uid != userId).
      * @principle Enforces document ownership for all operations on user profiles.
      */
     match /users/{userId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
       allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Enforces user-specific data access for submissions.
+     * @description Protects user submissions.
      * @path /users/{userId}/submissions/{submissionId}
-     * @allow (create) - User with UID 'user123' can create a submission under their profile.
-     *   Request: { auth: { uid: 'user123' }, method: 'create', path: '/databases/(default)/documents/users/user123/submissions/sub1', resource: { data: { pageId: 'page1', pageName: 'Home', formData: {}, submittedAt: '2024-01-01T00:00:00Z' } } }
-     * @allow (get) - User with UID 'user123' can read a submission under their profile.
-     *   Request: { auth: { uid: 'user123' }, method: 'get', path: '/databases/(default)/documents/users/user123/submissions/sub1' }
-     * @allow (update) - User with UID 'user123' can update a submission under their profile.
-     *   Request: { auth: { uid: 'user123' }, method: 'update', path: '/databases/(default)/documents/users/user123/submissions/sub1', resource: { data: { pageId: 'page1', pageName: 'Home', formData: { newField: 'newValue' }, submittedAt: '2024-01-01T00:00:00Z' } } }
-     * @allow (delete) - User with UID 'user123' can delete a submission under their profile.
-     *   Request: { auth: { uid: 'user123' }, method: 'delete', path: '/databases/(default)/documents/users/user123/submissions/sub1' }
-     * @deny (create) - User with UID 'user456' cannot create a submission under user 'user123's profile.
-     *   Request: { auth: { uid: 'user456' }, method: 'create', path: '/databases/(default)/documents/users/user123/submissions/sub1', resource: { data: { pageId: 'page1', pageName: 'Home', formData: {}, submittedAt: '2024-01-01T00:00:00Z' } } }
-     * @deny (get) - User with UID 'user456' cannot read a submission under user 'user123's profile.
-     *   Request: { auth: { uid: 'user456' }, method: 'get', path: '/databases/(default)/documents/users/user123/submissions/sub1' }
-     * @deny (update) - User with UID 'user456' cannot update a submission under user 'user123's profile.
-     *   Request: { auth: { uid: 'user456' }, method: 'update', path: '/databases/(default)/documents/users/user123/submissions/sub1', resource: { data: { pageId: 'page1', pageName: 'Home', formData: { newField: 'newValue' }, submittedAt: '2024-01-01T00:00:00Z' } } }
-     * @deny (delete) - User with UID 'user456' cannot delete a submission under user 'user123's profile.
-     *   Request: { auth: { uid: 'user456' }, method: 'delete', path: '/databases/(default)/documents/users/user123/submissions/sub1' }
+     * @allow (create) - If the user is creating a submission under their own profile (auth.uid == userId).
+     * @allow (get) - If the user is requesting their own submission (auth.uid == userId).
+     * @allow (update) - If the user is updating their own submission (auth.uid == userId).
+     * @allow (delete) - If the user is deleting their own submission (auth.uid == userId).
+     * @deny (list) - If the user is not the owner (auth.uid != userId).
+     * @deny (create) - If the user is attempting to create a submission for another user (auth.uid != userId).
+     * @deny (get) - If the user is attempting to read another user's submission (auth.uid != userId).
+     * @deny (update) - If the user is attempting to update another user's submission (auth.uid != userId).
+     * @deny (delete) - If the user is attempting to delete another user's submission (auth.uid != userId).
      * @principle Enforces document ownership for all operations on user submissions.
      */
     match /users/{userId}/submissions/{submissionId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == submissionId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
-    }
-
-     /**
-      * @description Publicly readable collection with owner-only writes is disabled by default due to schema lacking of a required field `userId`.
-      * @path /pages
-      * @principle Publicly readable collection with owner-only writes.
-      */
-    match /pages/{pageId} {
-        allow get: if true;
-        allow list: if true;
-        allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-        // CRITICAL: Cannot implement owner-only writes. The 'pages' documents are missing an 'userId' field.
     }
   }
 }
