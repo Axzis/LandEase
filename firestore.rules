@@ -1,80 +1,75 @@
 /**
- * @file Firestore Security Rules
  * @description This ruleset enforces a strict user-ownership model for user profiles and their associated form submissions.
- *
- * Data Structure:
- * - /users/{userId}: Stores user profiles.  Each user document is named after the Firebase Auth UID.
- * - /users/{userId}/submissions/{submissionId}: Stores form submissions associated with a specific user.
- *
- * Key Security Decisions:
- * - User listing is disallowed.
- * - Only the authenticated user can read/write their profile and submissions.
- * - Data consistency between the path and the document's internal ID is enforced.
+ * Users can only read and write their own profile data and submissions.
+ * @dataStructure
+ * - `/users/{userId}`: Stores user profile data.
+ * - `/users/{userId}/submissions/{submissionId}`: Stores form submissions for a given user.
+ * @keySecurityDecisions
+ * - Users can only manage their own data. Listing all users or submissions across users is disallowed.
+ * - Only authenticated users can access data.
+ * @denormalizationForAuthorization N/A (Ownership is determined by the path)
+ * @structuralSegregation All private data is nested under the /users/{userId} path.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profile documents.
+     * @description Checks if the request is authenticated.
+     * @return {boolean} True if the user is signed in, false otherwise.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Checks if the authenticated user ID matches the provided user ID.
+     * @param {string} userId The user ID to compare against the authenticated user's UID.
+     * @return {boolean} True if the user IDs match, false otherwise.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * @description Checks if the authenticated user is the owner of an existing document.
+     * @param {string} userId The user ID that should own the document.
+     * @return {boolean} True if the user is signed in, owns the document, and the document exists.
+     */
+    function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Rules for user profiles.
      * @path /users/{userId}
-     * @allow (create) Authenticated user can create their own profile if the userId matches their auth UID.
-     * @allow (get, update, delete) Authenticated user can get, update, and delete their own profile if the userId matches their auth UID.
-     * @deny (list) Listing all users is not allowed.
-     * @deny (create) Authenticated user cannot create a profile with a userId that doesn't match their auth UID.
-     * @deny (update, delete) Authenticated user cannot update or delete another user's profile.
-     * @principle Enforces document ownership for user profiles.
+     * @allow (create) If the user is signed in and the userId matches the authenticated user's UID.
+     * @allow (get, update, delete) If the user is signed in and the userId matches the authenticated user's UID.
+     * @deny (create) If the user is not signed in.
+     * @deny (get, update, delete) If the user is not signed in or the userId does not match the authenticated user's UID.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
      */
     match /users/{userId} {
-      // Is the user signed in?
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      // Is the user the owner?
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      // Is the user the existing owner?
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
       allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to form submissions for a specific user.
+     * @description Rules for form submissions under a user's profile.
      * @path /users/{userId}/submissions/{submissionId}
-     * @allow (create) Authenticated user can create a submission under their user ID.
-     * @allow (get, list, update, delete) Authenticated user can get, list, update, and delete submissions under their user ID.
-     * @deny (create) Authenticated user cannot create a submission under another user's ID.
-     * @deny (update, delete) Authenticated user cannot update or delete another user's submission.
-     * @principle Enforces document ownership for submissions within a user's data tree.
+     * @allow (create) If the user is signed in and the userId matches the authenticated user's UID.
+     * @allow (get, update, delete) If the user is signed in and the userId matches the authenticated user's UID.
+     * @deny (create) If the user is not signed in.
+     * @deny (get, update, delete) If the user is not signed in or the userId does not match the authenticated user's UID.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
      */
     match /users/{userId}/submissions/{submissionId} {
-        // Is the user signed in?
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      // Is the user the owner?
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      // Is the user the existing owner?
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId);
+      allow create: if isOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
