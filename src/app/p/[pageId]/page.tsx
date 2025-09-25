@@ -4,14 +4,12 @@ import { useState, useEffect } from 'react';
 import { EditorCanvas } from '@/components/editor/editor-canvas';
 import { Loader2 } from 'lucide-react';
 import type { PageContent } from '@/lib/types';
-import { doc, getDoc } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
+import { getPublishedPage } from '@/lib/published-pages';
 
 interface PageData {
   content: PageContent;
   pageName: string;
   pageBackgroundColor?: string;
-  published?: boolean;
 }
 
 export default function PublicPage({ params }: { params: { pageId: string } }) {
@@ -21,40 +19,17 @@ export default function PublicPage({ params }: { params: { pageId: string } }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!pageId) {
-      setError('ID halaman tidak valid.');
-      setIsLoading(false);
-      return;
+    setIsLoading(true);
+    // Ini sekarang membaca dari file statis, bukan dari Firestore.
+    const data = getPublishedPage(pageId);
+
+    if (data) {
+      setPageData(data);
+    } else {
+      setError('Halaman ini tidak ditemukan atau belum dipublikasikan.');
     }
 
-    const fetchPageData = async () => {
-      setIsLoading(true);
-      try {
-        // Inisialisasi Firebase di sisi klien
-        const { firestore } = initializeFirebase();
-        const pageRef = doc(firestore, 'pages', pageId);
-        const docSnap = await getDoc(pageRef);
-
-        if (docSnap.exists()) {
-          const data = docSnap.data() as PageData;
-          // Periksa apakah halaman sudah dipublikasikan
-          if (data.published) {
-            setPageData(data);
-          } else {
-            setError('Halaman ini belum dipublikasikan.');
-          }
-        } else {
-          setError('Halaman tidak ditemukan.');
-        }
-      } catch (e) {
-        console.error('Gagal mengambil data halaman:', e);
-        setError('Terjadi kesalahan saat memuat halaman.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchPageData();
+    setIsLoading(false);
   }, [pageId]);
 
   if (isLoading) {
