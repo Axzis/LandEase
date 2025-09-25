@@ -210,21 +210,21 @@ const componentMap: { [key: string]: React.ComponentType<any> } = {
         )
     }),
     Form: React.forwardRef<HTMLDivElement, { pageId?: string, pageName?: string, title: string, description: string, buttonText: string, padding: string, readOnly?: boolean, [key: string]: any }>(({ padding, readOnly, pageId, pageName, ...rest }, ref) => {
-        const { ...domRest } = rest;
+        const { title, description, buttonText, ...domRest } = rest;
         return (
             <div ref={ref} style={{ padding }} {...domRest} className="w-full flex justify-center">
                 {readOnly ? (
-                    <PublicForm pageId={pageId!} pageName={pageName!} {...rest} />
+                    <PublicForm pageId={pageId!} pageName={pageName!} title={title} description={description} buttonText={buttonText} />
                 ) : (
                     <div className="w-full max-w-md mx-auto bg-card p-8 rounded-lg shadow-md border pointer-events-none">
-                        <h3 className="text-2xl font-bold mb-2 text-card-foreground">{rest.title}</h3>
-                        <p className="text-muted-foreground mb-6">{rest.description}</p>
+                        <h3 className="text-2xl font-bold mb-2 text-card-foreground">{title}</h3>
+                        <p className="text-muted-foreground mb-6">{description}</p>
                         <div className="space-y-4">
                             <div className="space-y-2">
                                 <Label htmlFor="email-preview" className="text-card-foreground">Email</Label>
                                 <Input id="email-preview" type="email" placeholder="you@example.com" disabled className="bg-background"/>
                             </div>
-                            <UIButton type="button" className="w-full" disabled>{rest.buttonText}</UIButton>
+                            <UIButton type="button" className="w-full" disabled>{buttonText}</UIButton>
                         </div>
                     </div>
                 )}
