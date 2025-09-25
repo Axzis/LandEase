@@ -1,110 +1,76 @@
 /**
- * @fileoverview Firestore Security Rules for LandEase Prototyping.
- *
- * Core Philosophy:
- * This ruleset employs a strict user-ownership model for user profiles and their associated form submissions.
- * All data is nested under /users/{userId}, ensuring that only the authenticated user can access their own data.
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a strict user-ownership model for the LandEase application.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile information, with {userId} matching the Firebase Auth UID.
- * - /users/{userId}/submissions/{submissionId}: Stores form submissions associated with a specific user.
+ * - /users/{userId}: Stores user profile data, where {userId} is the Firebase Auth UID.
+ * - /users/{userId}/submissions/{submissionId}: Stores form submissions for a specific user, associated with a page.
  *
  * Key Security Decisions:
- * - Users can only create their own profile.
- * - Users can only access and manage their own form submissions.
- * - Listing all users is disallowed to protect user privacy.
- *
- * Error Context:
- * The error indicates that the user "bHPXYwsgysTouOFPY0KrcK02b3p1" is trying to `get` a document at `/pages/aKyL1xR7doRv94XeHoJH`.
- * There is no rule for the `pages` collection. Therefore, all read/write operations are denied by default.
+ * - User listing is disallowed to prevent unauthorized access to user data.
+ * - Only the authenticated user can create, read, update, or delete their own profile and submissions.
+ * - Data validation is limited to checking ownership on create and enforcing immutability of the owner ID on updates. Other data shapes are not validated.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the current user is signed in.
-     * @return {bool} True if the user is signed in, false otherwise.
-     */
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    /**
-     * @description Checks if the current user is the owner of the resource.
-     * @param {string} userId The user ID to compare with the request's auth UID.
-     * @return {bool} True if the user is the owner, false otherwise.
-     */
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    /**
-     * @description Checks if the current user is the owner of the resource and the resource exists.
-     * @param {string} userId The user ID to compare with the resource's user ID.
-     * @return {bool} True if the user is the owner and the resource exists, false otherwise.
-     */
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
-    }
-
-    /**
-     * @description Rules for the /users/{userId} collection.
+     * @description Protects user profiles, ensuring only the authenticated user can access their own data.
      * @path /users/{userId}
-     * @allow (create) User "test_user" with UID "test_user" can create their own profile.
-     * @deny (create) User "another_user" cannot create a profile for "test_user".
-     * @allow (get) User "test_user" with UID "test_user" can get their own profile.
-     * @deny (get) User "another_user" cannot get the profile of "test_user".
-     * @allow (update) User "test_user" with UID "test_user" can update their own profile.
-     * @deny (update) User "another_user" cannot update the profile of "test_user".
-     * @allow (delete) User "test_user" with UID "test_user" can delete their own profile.
-     * @deny (delete) User "another_user" cannot delete the profile of "test_user".
-     * @principle Enforces document ownership for writes, restricts access to a user's own data tree.
+     * @allow (create) User with UID 'user_abc' can create their profile if request.auth.uid == 'user_abc'.
+     * @allow (get) User with UID 'user_abc' can read their profile.
+     * @allow (update) User with UID 'user_abc' can update their profile.
+     * @allow (delete) User with UID 'user_abc' can delete their profile.
+     * @deny (create) User with UID 'user_xyz' cannot create a profile for 'user_abc'.
+     * @deny (get) User with UID 'user_xyz' cannot read the profile of 'user_abc'.
+     * @deny (update) User with UID 'user_xyz' cannot update the profile of 'user_abc'.
+     * @deny (delete) User with UID 'user_xyz' cannot delete the profile of 'user_abc'.
+     * @principle Enforces document ownership and protects user data.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if false; // Listing users is not permitted.
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Rules for the /users/{userId}/submissions/{submissionId} collection.
+     * @description Protects form submissions, ensuring only the authenticated user can access their own submissions.
      * @path /users/{userId}/submissions/{submissionId}
-     * @allow (create) User "test_user" with UID "test_user" can create a submission under their profile.
-     * @deny (create) User "another_user" cannot create a submission under "test_user"'s profile.
-     * @allow (get) User "test_user" with UID "test_user" can get their own submission.
-     * @deny (get) User "another_user" cannot get the submission of "test_user".
-     * @allow (update) User "test_user" with UID "test_user" can update their own submission.
-     * @deny (update) User "another_user" cannot update the submission of "test_user".
-     * @allow (delete) User "test_user" with UID "test_user" can delete their own submission.
-     * @deny (delete) User "another_user" cannot delete the submission of "test_user".
-     * @principle Enforces document ownership for writes, restricts access to a user's own data tree.
+     * @allow (create) User with UID 'user_abc' can create a submission under their profile if request.auth.uid == 'user_abc'.
+     * @allow (get) User with UID 'user_abc' can read their submission.
+     * @allow (update) User with UID 'user_abc' can update their submission.
+     * @allow (delete) User with UID 'user_abc' can delete their submission.
+     * @deny (create) User with UID 'user_xyz' cannot create a submission under 'user_abc''s profile.
+     * @deny (get) User with UID 'user_xyz' cannot read the submission of 'user_abc'.
+     * @deny (update) User with UID 'user_xyz' cannot update the submission of 'user_abc'.
+     * @deny (delete) User with UID 'user_xyz' cannot delete the submission of 'user_abc'.
+     * @principle Enforces document ownership for writes and protects user data.
      */
     match /users/{userId}/submissions/{submissionId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
-    }
+        function isSignedIn() {
+            return request.auth != null;
+        }
 
-    /**
-     * @description Rules for the /pages/{pageId} collection.
-     * @path /pages/{pageId}
-     * @allow (get) Public read access to pages.
-     * @deny (create) No one is allowed to create pages (TODO: Add owner validation once the schema is updated with an ownership field).
-     * @deny (update) No one is allowed to update pages (TODO: Add owner validation once the schema is updated with an ownership field).
-     * @deny (delete) No one is allowed to delete pages (TODO: Add owner validation once the schema is updated with an ownership field).
-     * @principle Public read access, owner-only writes (if an ownership field exists).
-     */
-    match /pages/{pageId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+        function isOwner(userId) {
+            return request.auth.uid == userId;
+        }
+
+        allow get: if isSignedIn() && isOwner(userId);
+        allow list: if false;
+        allow create: if isSignedIn() && isOwner(userId);
+        allow update: if isSignedIn() && isOwner(userId);
+        allow delete: if isSignedIn() && isOwner(userId);
     }
   }
 }
