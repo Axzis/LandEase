@@ -1,70 +1,72 @@
-/**
- * @file Firebase Security Rules for LandEase Firestore.
- *
- * @core_philosophy This ruleset enforces a strict user-ownership model. Each user can only access their own data,
- * with no shared access or public data.
- * @data_structure
- *  - /users/{userId}: Stores user profile information.
- *  - /users/{userId}/submissions/{submissionId}: Stores form submissions specific to each user.
- * @key_security_decisions
- *  - Users cannot list all user accounts.
- *  - All write operations are validated against the authenticated user's ID to prevent unauthorized data modification.
- * @denormalization_for_authorization
- *  - The `userId` is present in the path for all user-specific data. The rules validate that this `userId` matches
- * the authenticated user's `uid` to ensure that users can only access their own data.
- * @structural_segregation N/A - There is no public data.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Secures user profiles, ensuring only the owning user can read and write their own profile data.
+     * @description Secure user profiles. Only the authenticated user can access their own profile.
      * @path /users/{userId}
-     * @allow (create) - A user with UID 'user_abc' can create their own profile at /users/user_abc, where the 'id' field in the data also matches 'user_abc'.
-     * @allow (get, update, delete) - A user with UID 'user_abc' can read, update, and delete their own profile at /users/user_abc.
-     * @deny (create, update, delete) - A user with UID 'user_xyz' cannot create, update, or delete the profile at /users/user_abc.
-     * @deny (list) - No one can list all user profiles.
+     * @allow (get, create, update, delete): If the authenticated user's UID matches the userId in the path.
+     * @deny (get): If the authenticated user's UID does not match the userId in the path.
+     * @deny (create): If the authenticated user's UID does not match the userId in the path.
+     * @deny (update): If the authenticated user's UID does not match the userId in the path.
+     * @deny (delete): If the authenticated user's UID does not match the userId in the path.
      * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
       function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
+        return request.auth.uid == userId;
       }
 
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-      allow get: if isOwner(userId);
+      allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Secures form submissions, ensuring only the owning user can access their own submissions.
+     * @description Secure form submissions. Only the authenticated user can access their own submissions.
      * @path /users/{userId}/submissions/{submissionId}
-     * @allow (create) - A user with UID 'user_abc' can create a submission under /users/user_abc/submissions/{submissionId}.
-     * @allow (get, list, update, delete) - A user with UID 'user_abc' can read, list, update, and delete their own submissions under /users/user_abc/submissions/{submissionId}.
-     * @deny (create, update, delete) - A user with UID 'user_xyz' cannot create, update, or delete submissions under /users/user_abc/submissions/{submissionId}.
-     * @principle Enforces document ownership for all operations within a user's data tree.
+     * @allow (get, create, update, delete): If the authenticated user's UID matches the userId in the path.
+     * @deny (get): If the authenticated user's UID does not match the userId in the path.
+     * @deny (create): If the authenticated user's UID does not match the userId in the path.
+     * @deny (update): If the authenticated user's UID does not match the userId in the path.
+     * @deny (delete): If the authenticated user's UID does not match the userId in the path.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId}/submissions/{submissionId} {
-        function isOwner(userId) {
-          return request.auth != null && request.auth.uid == userId;
-        }
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-        function isExistingOwner(userId) {
-          return isOwner(userId) && resource != null;
-        }
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
 
-        allow get: if isOwner(userId);
-        allow list: if isOwner(userId);
-        allow create: if isOwner(userId);
-        allow update: if isExistingOwner(userId);
-        allow delete: if isExistingOwner(userId);
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if false; // Listing submissions not allowed - changed from original
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
+    }
+
+    /**
+     * @description Placeholder for top-level pages collection.  Public read access to pages is allowed.
+     * @path /pages/{pageId}
+     * @allow (get, list): Public read access.
+     * @deny (create, update, delete): No one can create, update, or delete pages in this prototyping phase.
+     * @principle Placeholder; access is currently open for reads but closed for writes.
+     */
+    match /pages/{pageId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
   }
 }
