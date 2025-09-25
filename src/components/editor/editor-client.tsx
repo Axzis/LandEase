@@ -82,6 +82,32 @@ export function EditorClient({ pageData }: EditorClientProps) {
   const { toast } = useToast();
   const router = useRouter();
 
+  // Keyboard shortcut for deleting component
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace')) {
+        // Prevent browser back navigation on Backspace
+        if (e.key === 'Backspace' && (e.target as HTMLElement).tagName !== 'INPUT' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
+          e.preventDefault();
+        }
+        
+        if (selectedComponentId) {
+            // Check if focus is not inside an input field
+            const activeElement = document.activeElement;
+            if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+                return;
+            }
+          deleteComponent(selectedComponentId);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedComponentId]);
+
   const handleSelectComponent = (id: string | null) => {
     setSelectedComponentId(id);
   };
