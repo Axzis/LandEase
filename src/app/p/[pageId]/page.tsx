@@ -3,9 +3,9 @@
 import { EditorCanvas } from '@/components/editor/editor-canvas';
 import { notFound } from 'next/navigation';
 import { doc } from 'firebase/firestore';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { useDoc, useFirestore } from '@/firebase';
 import { Loader2 } from 'lucide-react';
-import React from 'react';
+import React, { useMemo } from 'react';
 
 interface PageData {
     content: any[];
@@ -22,7 +22,7 @@ export default function PublicPage({ params }: { params: Promise<{ pageId: strin
   const resolvedParams = React.use(params);
   const { pageId } = resolvedParams;
   
-  const pageDocRef = useMemoFirebase(() => {
+  const pageDocRef = useMemo(() => {
     if (!firestore || !pageId) return null;
     return doc(firestore, 'pages', pageId);
   }, [firestore, pageId]);

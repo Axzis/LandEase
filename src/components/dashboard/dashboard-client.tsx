@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { collection, doc, addDoc, serverTimestamp, writeBatch, updateDoc, arrayUnion } from 'firebase/firestore';
-import { useAuth, useFirestore, useUser, useDoc, useMemoFirebase } from '@/firebase';
+import { useAuth, useFirestore, useUser, useDoc } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
@@ -34,7 +34,7 @@ export function DashboardClient() {
   const [isCreatingPage, setIsCreatingPage] = useState(false);
 
   // Get the user document which contains the list of pages
-  const userDocRef = useMemoFirebase(() => {
+  const userDocRef = useMemo(() => {
     if (!user || !firestore) return null;
     return doc(firestore, `users/${user.uid}`);
   }, [firestore, user]);

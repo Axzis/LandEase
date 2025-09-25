@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useTransition } from 'react';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
+import { useFirestore, useDoc, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -89,7 +89,7 @@ const createNewComponent = (type: ComponentType): PageComponent => {
 export function EditorClient({ pageId }: EditorClientProps) {
   const firestore = useFirestore();
   const { user, loading: isUserLoading } = useUser();
-  const pageDocRef = useMemoFirebase(() => {
+  const pageDocRef = useMemo(() => {
     if (!firestore || !pageId) return null;
     return doc(firestore, 'pages', pageId);
   }, [firestore, pageId]);

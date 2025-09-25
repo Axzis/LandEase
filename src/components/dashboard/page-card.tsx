@@ -1,7 +1,7 @@
 'use client';
 
 import { doc } from 'firebase/firestore';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { useDoc, useFirestore } from '@/firebase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -9,6 +9,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Pencil } from 'lucide-react';
 import Image from 'next/image';
 import { Skeleton } from '../ui/skeleton';
+import { useMemo } from 'react';
 
 interface Page {
   id: string;
@@ -23,7 +24,7 @@ interface PageCardProps {
 export function PageCard({ pageId }: PageCardProps) {
   const firestore = useFirestore();
   
-  const pageDocRef = useMemoFirebase(() => {
+  const pageDocRef = useMemo(() => {
       if (!firestore || !pageId) return null;
       return doc(firestore, 'pages', pageId);
   }, [firestore, pageId]);
