@@ -96,10 +96,17 @@ export function AuthForm({ mode }: AuthFormProps) {
         };
         batch.set(userDocRef, userDocData);
         
-        await batch.commit().catch(error => {
-           toast({ variant: 'destructive', title: 'Error during signup process', description: 'Failed to create initial user data.'});
-           console.error("Signup batch commit failed", error);
-           // Optionally re-throw or handle more gracefully
+        batch.commit().catch(error => {
+          if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: `users/${user.uid} and pages/${newPageRef.id}`, // Simplified path for batch
+                operation: 'create',
+                requestResourceData: { user: userDocData, page: defaultPageData },
+            });
+            errorEmitter.emit('permission-error', permissionError);
+          } else {
+            toast({ variant: 'destructive', title: 'Error during signup process', description: 'Failed to create initial user data.'});
+          }
         });
         
         toast({ title: "Account created successfully!" });

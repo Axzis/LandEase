@@ -57,7 +57,6 @@ export function useDoc<T = any>(
 
     setIsLoading(true);
     setError(null);
-    // Optional: setData(null); // Clear previous data instantly
 
     const unsubscribe = onSnapshot(
       memoizedDocRef,
@@ -72,13 +71,19 @@ export function useDoc<T = any>(
         setIsLoading(false);
       },
       (err: FirestoreError) => {
-        console.error("useDoc error:", err);
-        setError(err); // Set the raw Firestore error
+        // Set the local error state for UI feedback
+        setError(err);
         setData(null);
         setIsLoading(false);
-
-        // NOTE: We are no longer throwing a custom error that crashes the app.
-        // The component using this hook will now be responsible for displaying the error state.
+        
+        // Also emit the contextual error for the development overlay
+        if (err.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: memoizedDocRef.path,
+                operation: 'get',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
       }
     );
 
