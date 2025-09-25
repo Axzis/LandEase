@@ -1,68 +1,110 @@
 /**
- * @file Overview
- * This ruleset enforces a user-ownership model for all data. Each user can only access their own profile and associated submissions.
+ * @fileoverview Firestore Security Rules for LandEase Prototyping.
+ *
+ * Core Philosophy:
+ * This ruleset implements a strict user-ownership model. Each user can only
+ * access their own data. This is a prototype, so data validation is omitted
+ * except where it is critical for security and relational integrity.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile data. The {userId} must match the authenticated user's UID.
- * - /users/{userId}/submissions/{submissionId}: Stores form submissions for a specific user.
+ * - /users/{userId}: Stores user profiles, accessible only by the owner.
+ * - /users/{userId}/submissions/{submissionId}: Stores form submissions, accessible only by the owner.
  *
  * Key Security Decisions:
- * - Users can only read and write their own data.
- * - Listing all users or submissions across all users is disallowed.
- * - Data consistency is enforced between the path and the document's internal ID fields.
+ * - Users can only list submissions that belong to them.
+ * - Users cannot list all users.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Manages user profile data, ensuring only the authenticated user can access their own profile.
+     * @description Checks if the current user is signed in.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Checks if the current user is the owner of the resource.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * @description Checks if the current user is the owner of the resource, and that the resource exists.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && exists(/databases/$(database)/documents/users/$(userId));
+    }
+
+    /**
+     * @description Enforces that the incoming document has the correct userId on creation.
+     */
+    function isValidOwnerOnCreate(userId) {
+      return request.resource.data.id == userId;
+    }
+
+    /**
+     * @description Enforces that the userId cannot be changed after creation.
+     */
+    function isValidOwnerOnUpdate(userId) {
+      return request.resource.data.id == resource.data.id;
+    }
+
+    /**
+     * @description
+     * Secures the /users/{userId} collection, ensuring only the authenticated user can manage their own profile.
      * @path /users/{userId}
-     * @allow (create) - User with UID 'user_abc' can create their profile at /users/user_abc.
-     * @allow (get) - User with UID 'user_abc' can read their profile at /users/user_abc.
-     * @allow (update) - User with UID 'user_abc' can update their profile at /users/user_abc.
-     * @allow (delete) - User with UID 'user_abc' can delete their profile at /users/user_abc.
-     * @deny (create) - User with UID 'user_def' cannot create a profile at /users/user_abc.
-     * @deny (get) - User with UID 'user_def' cannot read the profile at /users/user_abc.
-     * @deny (update) - User with UID 'user_def' cannot update the profile at /users/user_abc.
-     * @deny (delete) - User with UID 'user_def' cannot delete the profile at /users/user_abc.
-     * @principle Enforces strict user ownership for profile data.
+     * @allow (create) - User 'alice' (auth.uid: 'alice') can create their profile at /users/alice.
+     * @allow (get) - User 'bob' (auth.uid: 'bob') can read their profile at /users/bob.
+     * @allow (update) - User 'charlie' (auth.uid: 'charlie') can update their profile at /users/charlie.
+     * @allow (delete) - User 'david' (auth.uid: 'david') can delete their profile at /users/david.
+     * @deny (create) - User 'eve' (auth.uid: 'eve') cannot create a profile for 'mallory' at /users/mallory.
+     * @deny (get) - User 'frank' (auth.uid: 'frank') cannot read alice's profile at /users/alice.
+     * @principle Enforces document ownership for writes and reads; users can only access their own profile.
      */
     match /users/{userId} {
-      // Helper function to check if the user is signed in and owns the resource.
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
       allow get: if isOwner(userId);
-      allow list: if false;
+      allow list: if false; // Do not allow listing of all users.
       allow create: if isOwner(userId);
       allow update: if isOwner(userId);
       allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Manages form submissions for a specific user. Only the authenticated user can access their own submissions.
+     * @description
+     * Secures the /users/{userId}/submissions/{submissionId} collection, ensuring only the authenticated user can manage their own submissions.
      * @path /users/{userId}/submissions/{submissionId}
-     * @allow (create) - User with UID 'user_abc' can create a submission at /users/user_abc/submissions/sub_123.
-     * @allow (get) - User with UID 'user_abc' can read their submission at /users/user_abc/submissions/sub_123.
-     * @allow (update) - User with UID 'user_abc' can update their submission at /users/user_abc/submissions/sub_123.
-     * @allow (delete) - User with UID 'user_abc' can delete their submission at /users/user_abc/submissions/sub_123.
-     * @deny (create) - User with UID 'user_def' cannot create a submission at /users/user_abc/submissions/sub_123.
-     * @deny (get) - User with UID 'user_def' cannot read the submission at /users/user_abc/submissions/sub_123.
-     * @deny (update) - User with UID 'user_def' cannot update the submission at /users/user_abc/submissions/sub_123.
-     * @deny (delete) - User with UID 'user_def' cannot delete the submission at /users/user_abc/submissions/sub_123.
-     * @principle Enforces user ownership for form submissions.
+     * @allow (create) - User 'alice' (auth.uid: 'alice') can create a submission at /users/alice/submissions/123.
+     * @allow (get) - User 'bob' (auth.uid: 'bob') can read their submission at /users/bob/submissions/456.
+     * @allow (update) - User 'charlie' (auth.uid: 'charlie') can update their submission at /users/charlie/submissions/789.
+     * @allow (delete) - User 'david' (auth.uid: 'david') can delete their submission at /users/david/submissions/012.
+     * @deny (create) - User 'eve' (auth.uid: 'eve') cannot create a submission for 'mallory' at /users/mallory/submissions/345.
+     * @deny (get) - User 'frank' (auth.uid: 'frank') cannot read alice's submission at /users/alice/submissions/678.
+     * @principle Enforces document ownership for writes and reads; users can only access their own submissions.
      */
     match /users/{userId}/submissions/{submissionId} {
-      // Helper function to check if the user is signed in and owns the resource.
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
       allow create: if isOwner(userId);
       allow update: if isOwner(userId);
       allow delete: if isOwner(userId);
     }
+
+     /**
+      * @description Prevents unauthorized listing of pages
+      * @path /pages
+      * @allow (list) - No one can list pages
+      * @principle Prevents unauthorized access
+      */
+     match /pages/{pageId} {
+        allow get: if false;
+        allow list: if false; // Prevents listing of pages
+        allow create: if false;
+        allow update: if false;
+        allow delete: if false;
+      }
   }
 }
