@@ -39,18 +39,18 @@ export default function PublicPage({ params }: { params: Promise<{ pageId: strin
 
   if (error) {
      console.error("Error loading page:", error);
-     // This could be a permissions error or the document not existing.
-     // notFound() is a reasonable default.
+     // Ini bisa jadi error izin atau dokumen tidak ada.
+     // notFound() adalah default yang masuk akal.
      notFound();
   }
 
-  // If data is null after loading and no error, it means the doc doesn't exist.
+  // Jika data null setelah memuat dan tidak ada error, itu berarti dokumen tidak ada.
   if (!pageData) {
     notFound();
   }
 
-  // CRITICAL: Manually enforce that only 'published' pages can be viewed.
-  // This adds a layer of security on the client, complementing the Firestore rules.
+  // KRITIS: Secara manual menegakkan bahwa hanya halaman yang 'published' yang dapat dilihat.
+  // Ini menambahkan lapisan keamanan di klien, melengkapi aturan Firestore.
   if (pageData.published !== true) {
     notFound();
   }
