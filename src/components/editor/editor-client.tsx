@@ -52,7 +52,7 @@ const createNewComponent = (type: ComponentType): PageComponent => {
   const id = generateId();
   switch (type) {
     case 'Section':
-      return { id, type: 'Section', props: { backgroundColor: '#FFFFFF', padding: '64px' }, children: [] };
+      return { id, type: 'Section', props: { backgroundColor: 'transparent', padding: '16px', display: 'block', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', gap: '16px' }, children: [] };
     case 'Heading':
       return { id, type: 'Heading', props: { text: 'New Heading', level: 'h2', align: 'left' } };
     case 'Text':

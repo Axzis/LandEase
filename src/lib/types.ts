@@ -12,6 +12,11 @@ export interface SectionComponent extends BaseComponent {
   props: {
     backgroundColor: string;
     padding: string;
+    display: 'block' | 'flex';
+    flexDirection: 'row' | 'column';
+    alignItems: 'flex-start' | 'center' | 'flex-end' | 'stretch';
+    justifyContent: 'flex-start' | 'center' | 'flex-end' | 'space-between' | 'space-around';
+    gap: string;
   };
   children: PageComponent[];
 }

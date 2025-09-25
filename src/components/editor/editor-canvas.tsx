@@ -8,8 +8,8 @@ import { Rocket } from 'lucide-react';
 
 // A map to dynamically render components based on their type
 const componentMap: { [key: string]: React.ComponentType<any> } = {
-    Section: React.forwardRef<HTMLElement, { backgroundColor: string, padding: string, [key: string]: any }>(({ backgroundColor, padding, ...rest }, ref) => (
-        <section ref={ref} style={{ backgroundColor, padding }} {...rest} />
+    Section: React.forwardRef<HTMLElement, { backgroundColor: string, padding: string, display: string, flexDirection: string, alignItems: string, justifyContent: string, gap: string, [key: string]: any }>(({ backgroundColor, padding, display, flexDirection, alignItems, justifyContent, gap, ...rest }, ref) => (
+        <section ref={ref} style={{ backgroundColor, padding, display, flexDirection, alignItems, justifyContent, gap }} {...rest} />
     )),
     Heading: React.forwardRef<HTMLHeadingElement, { level: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6', text: string, align: string, [key: string]: any }>(({ level, text, align, ...rest }, ref) => {
         const Tag = level;
@@ -43,7 +43,7 @@ const componentMap: { [key: string]: React.ComponentType<any> } = {
                     <span>{logoText}</span>
                 </a>
                 <div className="hidden md:flex items-center space-x-6">
-                    {links.map((link, index) => (
+                    {(links || []).map((link, index) => (
                         <a key={index} href={link.href} className="hover:text-primary">{link.text}</a>
                     ))}
                 </div>
