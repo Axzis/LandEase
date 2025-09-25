@@ -1,6 +1,7 @@
 
 import { EditorCanvas } from './editor-canvas';
 import { PageContent, PageComponent, ComponentType } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 interface CanvasProps {
   content: PageContent;
@@ -50,14 +51,16 @@ export function Canvas({ content, onSelectComponent, selectedComponentId, onDele
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      <EditorCanvas
-          content={content}
-          onSelectComponent={onSelectComponent}
-          selectedComponentId={selectedComponentId}
-          onDeleteComponent={onDeleteComponent}
-          onAddComponent={onAddComponent}
-          onMoveComponent={onMoveComponent}
-        />
+      <div className={cn('pb-[50vh]')}>
+        <EditorCanvas
+            content={content}
+            onSelectComponent={onSelectComponent}
+            selectedComponentId={selectedComponentId}
+            onDeleteComponent={onDeleteComponent}
+            onAddComponent={onAddComponent}
+            onMoveComponent={onMoveComponent}
+          />
+      </div>
        {content.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="text-center p-8 border-2 border-dashed rounded-lg text-muted-foreground">
