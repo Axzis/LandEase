@@ -1,0 +1,66 @@
+/**
+ * @fileOverview
+ * This ruleset enforces a strict user-ownership model for data access, ensuring that only the authenticated user who owns a specific resource can read or modify it.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profiles, accessible only to the user themselves.
+ * - /users/{userId}/submissions/{submissionId}: Stores form submissions, accessible only to the owning user.
+ * - /pages/{pageId}
+ *
+ * Key Security Decisions:
+ * - Users can only access their own data. No cross-user data access is allowed.
+ * - `list` operations are restricted to the owner for user-scoped subcollections.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Restricts access to user profiles. Only the authenticated user can read or write their own profile.
+     * @path /users/{userId}
+     * @allow (get, create, update, delete) if the request is made by the user with the matching userId.
+     * @deny (get, create, update, delete) if the request is made by a different user or if the user is not authenticated.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId} {
+      // Test case that should pass:
+      // - Request: get /users/user123, Auth: {uid: "user123"}
+      // Test case that should fail:
+      // - Request: get /users/user123, Auth: {uid: "user456"}
+
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false; // Listing users is not permitted.
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+
+    /**
+     * @description Restricts access to form submissions. Only the authenticated user who owns the submission can read or write it.
+     * @path /users/{userId}/submissions/{submissionId}
+     * @allow (get, create, update, delete) if the request is made by the user with the matching userId.
+     * @deny (get, create, update, delete) if the request is made by a different user or if the user is not authenticated.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId}/submissions/{submissionId} {
+      // Test case that should pass:
+      // - Request: get /users/user123/submissions/sub123, Auth: {uid: "user123"}
+      // Test case that should fail:
+      // - Request: get /users/user123/submissions/sub123, Auth: {uid: "user456"}
+
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId); // Allows listing of submissions by owner.
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+  }
+}
