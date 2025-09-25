@@ -2,6 +2,7 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 import { EditorClient } from "@/components/editor/editor-client";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
+import { firebaseConfig } from "@/firebase/config";
 
 async function getPageData(pageId: string) {
   try {
@@ -35,7 +36,7 @@ export default async function EditorPage({ params }: { params: { pageId: string 
     createdAt: pageData.createdAt?.toDate()?.toISOString() || null,
     lastUpdated: pageData.lastUpdated?.toDate()?.toISOString() || null,
     // Pass the project ID to the client
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    projectId: firebaseConfig.projectId,
   };
 
 
