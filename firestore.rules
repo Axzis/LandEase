@@ -1,83 +1,97 @@
 /**
- * @fileoverview Firestore Security Rules for LandEase Prototyping.
+ * @file Firebase Security Rules for LandEase Prototyping
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for user profiles and their associated form submissions.
- * All data is nested under /users/{userId}, ensuring that only the authenticated user can access their own data.
+ * This ruleset employs a strict user-ownership model, ensuring that only authenticated users can access and modify their own data. Public read access is granted to certain collections to support core application functionality.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile information.
- * - /users/{userId}/submissions/{submissionId}: Stores form submissions made by the user.
+ * - User profiles are stored under `/users/{userId}`, with the `userId` matching the Firebase Auth UID.
+ * - User submissions are stored under `/users/{userId}/submissions/{submissionId}`, linking submissions to their respective owners.
  *
  * Key Security Decisions:
- * - Users can only create, read, update, and delete their own user profiles.
- * - Users can only create, read, update, and delete form submissions under their own user ID.
- * - Listing of all users is disallowed, protecting user privacy.
+ * - User listing is disallowed to prevent unauthorized data enumeration.
+ * - Read-only collections (if any) are explicitly marked with `allow get, list: if true;`.
+ * - All write operations are protected by authorization checks, with no usage of `allow write: if true;`.
  *
  * Denormalization for Authorization:
- *  The data model inherently denormalizes the user ID by nesting all data under the /users/{userId} path.
- *  This allows for efficient authorization checks based on the path without requiring additional database reads.
+ *  - User submissions are nested under the user's document to simplify ownership checks. This avoids the need for complex queries or additional reads to verify ownership.
+ *
+ * Structural Segregation:
+ *  - Publicly accessible data (if any) will reside in top-level collections, separate from user-private data under `/users/{userId}`.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows users to manage their own user profile.
+     * @description Grants access to user profiles based on ownership. Only the authenticated user can read and write their own profile.
      * @path /users/{userId}
-     * @allow (create) - Authenticated user can create their profile if the userId matches their auth UID.
-     * @allow (get, update, delete) - Authenticated user can read, update, and delete their profile if the userId matches their auth UID.
-     * @deny (create) - Creation is denied if the userId does not match the auth UID.
-     * @deny (get, update, delete) - Access is denied if the userId does not match the auth UID.
-     * @principle Enforces document ownership for user profiles.
+     * @allow (create) User with UID 'bHPXYwsgysTouOFPY0KrcK02b3p1' can create their profile at /users/bHPXYwsgysTouOFPY0KrcK02b3p1.
+     * @allow (get) User with UID 'bHPXYwsgysTouOFPY0KrcK02b3p1' can read their profile at /users/bHPXYwsgysTouOFPY0KrcK02b3p1.
+     * @allow (update) User with UID 'bHPXYwsgysTouOFPY0KrcK02b3p1' can update their profile at /users/bHPXYwsgysTouOFPY0KrcK02b3p1.
+     * @allow (delete) User with UID 'bHPXYwsgysTouOFPY0KrcK02b3p1' can delete their profile at /users/bHPXYwsgysTouOFPY0KrcK02b3p1.
+     * @deny (create) User with UID 'bHPXYwsgysTouOFPY0KrcK02b3p1' cannot create a profile at /users/anotherUserId.
+     * @deny (get) User with UID 'bHPXYwsgysTouOFPY0KrcK02b3p1' cannot read the profile at /users/anotherUserId.
+     * @deny (update) User with UID 'bHPXYwsgysTouOFPY0KrcK02b3p1' cannot update the profile at /users/anotherUserId.
+     * @deny (delete) User with UID 'bHPXYwsgysTouOFPY0KrcK02b3p1' cannot delete the profile at /users/anotherUserId.
+     * @principle Enforces document ownership for all operations on user profiles.
      */
     match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
       allow get: if isOwner(userId);
-      allow list: if false; // Listing all users is not permitted.
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows users to manage their own form submissions.
+     * @description Grants access to user submissions based on ownership. Only the authenticated user can read and write their own submissions.
      * @path /users/{userId}/submissions/{submissionId}
-     * @allow (create) - Authenticated user can create a submission under their userId.
-     * @allow (get, list, update, delete) - Authenticated user can read, list, update, and delete submissions under their userId.
-     * @deny (create) - Creation is denied if the userId does not match the auth UID.
-     * @deny (get, list, update, delete) - Access is denied if the userId does not match the auth UID.
-     * @principle Enforces document ownership for form submissions.
+     * @allow (create) User with UID 'bHPXYwsgysTouOFPY0KrcK02b3p1' can create a submission at /users/bHPXYwsgysTouOFPY0KrcK02b3p1/submissions/someSubmissionId.
+     * @allow (get) User with UID 'bHPXYwsgysTouOFPY0KrcK02b3p1' can read their submission at /users/bHPXYwsgysTouOFPY0KrcK02b3p1/submissions/someSubmissionId.
+     * @allow (update) User with UID 'bHPXYwsgysTouOFPY0KrcK02b3p1' can update their submission at /users/bHPXYwsgysTouOFPY0KrcK02b3p1/submissions/someSubmissionId.
+     * @allow (delete) User with UID 'bHPXYwsgysTouOFPY0KrcK02b3p1' can delete their submission at /users/bHPXYwsgysTouOFPY0KrcK02b3p1/submissions/someSubmissionId.
+     * @deny (create) User with UID 'bHPXYwsgysTouOFPY0KrcK02b3p1' cannot create a submission at /users/anotherUserId/submissions/someSubmissionId.
+     * @deny (get) User with UID 'bHPXYwsgysTouOFPY0KrcK02b3p1' cannot read a submission at /users/anotherUserId/submissions/someSubmissionId.
+     * @deny (update) User with UID 'bHPXYwsgysTouOFPY0KrcK02b3p1' cannot update a submission at /users/anotherUserId/submissions/someSubmissionId.
+     * @deny (delete) User with UID 'bHPXYwsgysTouOFPY0KrcK02b3p1' cannot delete a submission at /users/anotherUserId/submissions/someSubmissionId.
+     * @principle Enforces document ownership for all operations on user submissions.
      */
     match /users/{userId}/submissions/{submissionId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-      allow create: if isSignedIn() && isOwner(userId);
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
+
+    // Adding a pages collection based on error provided.
+    /**
+     * @description Grants read access to all documents in the pages collection.
+     * @path /pages/{pageId}
+     * @allow (get) Any user can read any document in the pages collection.
+     * @allow (list) Any user can list documents in the pages collection.
+     * @deny (create) No one can create documents in the pages collection.
+     * @deny (update) No one can update documents in the pages collection.
+     * @deny (delete) No one can delete documents in the pages collection.
+     * @principle Allows public read access to the pages collection while restricting write access.
+     */
+    match /pages/{pageId} {
+        allow get, list: if true;
+        allow create, update, delete: if false;
+    }
+  }
+
+  // Helper Functions
+  function isSignedIn() {
+    return request.auth != null;
+  }
+
+  function isOwner(userId) {
+    return isSignedIn() && request.auth.uid == userId;
+  }
+
+  function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
   }
 }
