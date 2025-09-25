@@ -41,8 +41,8 @@ interface EditorClientProps {
     pageName: string;
     content: PageContent;
     published?: boolean;
-    // Add this to get the project ID
     projectId?: string;
+    pageBackgroundColor?: string;
   };
 }
 
@@ -75,6 +75,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
   const [pageName, setPageName] = useState(pageData.pageName);
   const [content, setContent] = useState<PageContent>(pageData.content);
   const [isPublished, setIsPublished] = useState(pageData.published || false);
+  const [pageBackgroundColor, setPageBackgroundColor] = useState(pageData.pageBackgroundColor || '#FFFFFF');
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -246,6 +247,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
         pageName,
         content: JSON.parse(JSON.stringify(content)),
         lastUpdated: serverTimestamp(),
+        pageBackgroundColor,
       });
       toast({
         title: 'Page Saved Successfully!',
@@ -393,6 +395,11 @@ export function EditorClient({ pageData }: EditorClientProps) {
                 selectedComponent={selectedComponent}
                 onUpdateComponent={updateComponentProps}
                 onClearSelection={() => handleSelectComponent(null)}
+                pageBackgroundColor={pageBackgroundColor}
+                onUpdatePageBackgroundColor={(color) => {
+                  setPageBackgroundColor(color);
+                  setIsDirty(true);
+                }}
               />
             </div>
           </aside>
@@ -404,6 +411,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
               onDeleteComponent={deleteComponent}
               onAddComponent={handleAddComponent}
               onMoveComponent={handleMoveComponent}
+              pageBackgroundColor={pageBackgroundColor}
             />
           </main>
         </div>

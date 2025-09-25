@@ -13,6 +13,8 @@ interface InspectorPanelProps {
   selectedComponent: PageComponent | null;
   onUpdateComponent: (id: string, newProps: any) => void;
   onClearSelection: () => void;
+  pageBackgroundColor: string;
+  onUpdatePageBackgroundColor: (color: string) => void;
 }
 
 const inspectorMap = {
@@ -25,7 +27,7 @@ const inspectorMap = {
   Footer: FooterInspector,
 };
 
-export function InspectorPanel({ selectedComponent, onUpdateComponent, onClearSelection }: InspectorPanelProps) {
+export function InspectorPanel({ selectedComponent, onUpdateComponent, pageBackgroundColor, onUpdatePageBackgroundColor }: InspectorPanelProps) {
   const Inspector = selectedComponent ? inspectorMap[selectedComponent.type as keyof typeof inspectorMap] : null;
 
   const key = selectedComponent ? selectedComponent.id : 'page-inspector';
@@ -47,7 +49,10 @@ export function InspectorPanel({ selectedComponent, onUpdateComponent, onClearSe
                 onUpdate={onUpdateComponent}
               />
             ) : (
-              <PageInspector />
+              <PageInspector 
+                backgroundColor={pageBackgroundColor}
+                onUpdateBackgroundColor={onUpdatePageBackgroundColor}
+              />
             )}
           </motion.div>
         </AnimatePresence>

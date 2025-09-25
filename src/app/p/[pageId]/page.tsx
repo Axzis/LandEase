@@ -51,6 +51,8 @@ export default async function PublicPage({ params }: { params: { pageId:string }
     }
 
     return (
-        <EditorCanvas content={pageData.content} readOnly />
+        <div style={{ backgroundColor: pageData.pageBackgroundColor || '#FFFFFF' }}>
+             <EditorCanvas content={pageData.content} readOnly />
+        </div>
     )
 }

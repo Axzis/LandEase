@@ -1,5 +1,3 @@
-
-
 import { EditorCanvas } from './editor-canvas';
 import { PageContent, PageComponent, ComponentType } from '@/lib/types';
 
@@ -10,9 +8,10 @@ interface CanvasProps {
   onDeleteComponent: (id: string) => void;
   onAddComponent: (type: ComponentType, parentId: string | null, targetId: string | null) => void;
   onMoveComponent: (draggedId: string, targetId: string, parentId: string | null, position: 'top' | 'bottom') => void;
+  pageBackgroundColor: string;
 }
 
-export function Canvas({ content, onSelectComponent, selectedComponentId, onDeleteComponent, onAddComponent, onMoveComponent }: CanvasProps) {
+export function Canvas({ content, onSelectComponent, selectedComponentId, onDeleteComponent, onAddComponent, onMoveComponent, pageBackgroundColor }: CanvasProps) {
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
@@ -38,7 +37,8 @@ export function Canvas({ content, onSelectComponent, selectedComponentId, onDele
 
   return (
     <div 
-      className="p-4 bg-white h-full relative"
+      className="p-4 h-full relative"
+      style={{ backgroundColor: pageBackgroundColor }}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onSelectComponent(null);
