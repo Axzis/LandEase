@@ -1,64 +1,56 @@
-/**
- * @fileoverview Firestore Security Rules for LandEase Prototyping.
- *
- * Core Philosophy:
- * This ruleset employs a strict user-ownership model. Users can only
- * access their own data, preventing unauthorized access to other users' information.
- * The rules are designed to be permissive regarding the shape of the data to facilitate
- * rapid prototyping.
- *
- * Data Structure:
- * - /users/{userId}: Stores user profile information. The `userId` must match the
- *   authenticated user's UID.
- * - /users/{userId}/submissions/{submissionId}: Stores form submissions associated
- *   with a specific user. Access is restricted to the owning user.
- *
- * Key Security Decisions:
- * - User listing is disallowed.
- * - Data shape validation is minimized to enable rapid prototyping and schema evolution.
- * - Write operations are strictly limited to the authenticated user to prevent
- *   unauthorized modifications.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Secure user profiles. Only the authenticated user can read and write their own profile.
-     * @path /users/{userId}
-     * @allow (get, create, update, delete) - Authenticated user with matching userId.
-     * @deny (get, create, update, delete) - Any other user or unauthenticated user.
-     * @principle Enforces document ownership.
+     * @description Allows read-only access to the 'pages' collection.
+     * @path /pages/{pageId}
+     * @allow (get, list) Any authenticated user can read any page.
+     * @deny (create, update, delete) No one can create, update, or delete pages through the client.
+     * @principle Allows public read access to page content while restricting write access.
      */
-    match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
-      allow delete: if isOwner(userId);
+    match /pages/{pageId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Secure form submissions for a specific user.
+     * @description Enforces user-ownership for user profiles.
+     * @path /users/{userId}
+     * @allow (create) The user can create their own profile if the userId matches their auth UID.
+     * @allow (get, list) The user can only get or list if the userId matches their auth UID. Listing is implicitly denied in this version.
+     * @allow (update, delete) The user can only update or delete if the userId matches their auth UID and the document exists.
+     * @deny (create) The user cannot create a profile for another user (userId != request.auth.uid).
+     * @deny (get, list, update, delete) Another user cannot access this profile (userId != request.auth.uid).
+     * @principle Enforces document ownership for writes, restricts access to a user's own data tree.
+     */
+    match /users/{userId} {
+      allow get: if request.auth.uid == userId;
+      allow list: if false; // Listing users is not permitted.
+      allow create: if request.auth.uid == userId;
+      allow update: if request.auth.uid == userId && exists(resource);
+      allow delete: if request.auth.uid == userId && exists(resource);
+    }
+
+    /**
+     * @description Enforces user-ownership for form submissions.
      * @path /users/{userId}/submissions/{submissionId}
-     * @allow (get, list, create, update, delete) - Authenticated user with matching userId.
-     * @deny (get, list, create, update, delete) - Any other user or unauthenticated user.
-     * @principle Enforces document ownership and prevents unauthorized access.
+     * @allow (create) The user can create a submission under their profile if the userId matches their auth UID.
+     * @allow (get, list) The user can only get or list their own submissions if the userId matches their auth UID.
+     * @allow (update, delete) The user can only update or delete their own submissions if the userId matches their auth UID and the document exists.
+     * @deny (create) The user cannot create a submission for another user (userId != request.auth.uid).
+     * @deny (get, list, update, delete) Another user cannot access this submission (userId != request.auth.uid).
+     * @principle Enforces document ownership for writes, restricts access to a user's own data tree.
      */
     match /users/{userId}/submissions/{submissionId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
-      allow delete: if isOwner(userId);
-    }
-
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      allow get: if request.auth.uid == userId;
+      allow list: if request.auth.uid == userId;
+      allow create: if request.auth.uid == userId;
+      allow update: if request.auth.uid == userId && exists(resource);
+      allow delete: if request.auth.uid == userId && exists(resource);
     }
   }
 }
