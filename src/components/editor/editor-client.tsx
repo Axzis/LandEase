@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useTransition } from 'react';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -33,6 +33,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { updatePublishedPage } from '@/lib/published-pages-server';
 
 interface EditorClientProps {
   pageId: string;
@@ -101,6 +102,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
   const [isDirty, setIsDirty] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   
   useEffect(() => {
     if (pageData) {
@@ -377,52 +379,71 @@ export function EditorClient({ pageId }: EditorClientProps) {
   };
 
 
-  const handleSave = async () => {
+  const handleSave = async (publishedState: boolean) => {
     if (!pageDocRef) return;
     setIsSaving(true);
+    
     const dataToSave = {
       userId: user?.uid,
       pageName,
       content: JSON.parse(JSON.stringify(content)),
       lastUpdated: serverTimestamp(),
       pageBackgroundColor,
-      published: isPublished
+      published: publishedState,
     };
 
     try {
-        localStorage.setItem(`preview_${pageId}`, JSON.stringify(dataToSave));
-    } catch (e) {
-        console.warn("Could not save preview to localStorage", e);
-    }
+      // Save to Firestore
+      await setDoc(pageDocRef, dataToSave, { merge: true });
 
-    setDoc(pageDocRef, dataToSave, { merge: true })
-      .then(() => {
-        toast({
-          title: 'Page Saved Successfully!',
-          description: 'Your changes have been saved.',
-        });
-        setIsDirty(false);
-      })
-      .catch((error) => {
-        console.error("Error saving page: ", error);
-        toast({
-          variant: 'destructive',
-          title: 'Save Failed',
-          description: 'Could not save your changes. Please try again.',
-        });
-      })
-      .finally(() => {
-        setIsSaving(false);
+      // After successful Firestore save, update the static JSON file
+      startTransition(async () => {
+        try {
+          const pageDataForJson = {
+            pageName,
+            content,
+            pageBackgroundColor,
+          };
+          // If published, write to file. If not, send null to remove from file.
+          await updatePublishedPage(pageId, publishedState ? pageDataForJson : null);
+
+          toast({
+            title: 'Page Saved Successfully!',
+            description: 'Your changes have been saved and published status updated.',
+          });
+        } catch (serverActionError) {
+           console.error("Error updating published page file: ", serverActionError);
+           toast({
+              variant: 'destructive',
+              title: 'Publishing Failed',
+              description: 'Changes were saved, but could not update the public page.',
+           });
+        }
       });
+      
+      setIsDirty(false);
+    } catch (error) {
+      console.error("Error saving page to Firestore: ", error);
+      toast({
+        variant: 'destructive',
+        title: 'Save Failed',
+        description: 'Could not save your changes to the database.',
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
+
 
   const handlePublishToggle = (published: boolean) => {
     setIsPublished(published);
-    setIsDirty(true); // Mark as dirty to enable saving
-    handleSave().then(() => {
-        toast({
-            title: `Page ${published ? 'Published' : 'Unpublished'}`,
-            description: `Your page is now ${published ? 'live' : 'private'}.`,
+    setIsDirty(true);
+    startTransition(() => {
+        handleSave(published).then(() => {
+            toast({
+                title: `Page ${published ? 'Published' : 'Unpublished'}`,
+                description: `Your page is now ${published ? 'live' : 'private'}.`,
+            });
         });
     });
   }
@@ -521,7 +542,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
                     </AlertDialogDescription>
                     </AlertDialogHeader>
                     <div className="flex items-center space-x-2 my-4">
-                        <Switch id="publish-toggle" checked={isPublished} onCheckedChange={handlePublishToggle} disabled={isSaving} />
+                        <Switch id="publish-toggle" checked={isPublished} onCheckedChange={handlePublishToggle} disabled={isSaving || isPending} />
                         <Label htmlFor="publish-toggle">{isPublished ? 'Published' : 'Not Published'}</Label>
                     </div>
                     {isPublished && publicUrl && (
@@ -542,9 +563,9 @@ export function EditorClient({ pageId }: EditorClientProps) {
                 </AlertDialogContent>
             </AlertDialog>
 
-            <Button onClick={handleSave} disabled={isSaving || !isDirty}>
-              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              {isSaving ? 'Saving...' : 'Save'}
+            <Button onClick={() => handleSave(isPublished)} disabled={isSaving || !isDirty || isPending}>
+              {(isSaving || isPending) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              {(isSaving || isPending) ? 'Saving...' : 'Save'}
             </Button>
           </div>
         </header>
