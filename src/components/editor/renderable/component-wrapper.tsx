@@ -55,16 +55,18 @@ export function ComponentWrapper({
   const getParentInfo = (element: HTMLElement | null): { parentId: string | null, columnIndex?: number } => {
     if (!element) return { parentId: null };
 
-    let current = element.parentElement?.closest('[data-component-id], [data-column-index]');
-    
-    if (current) {
-        const parentId = current.getAttribute('data-component-id') || current.getAttribute('data-parent-id');
-        const columnIndexStr = current.getAttribute('data-column-index');
-        const columnIndex = columnIndexStr ? parseInt(columnIndexStr, 10) : undefined;
-        
-        if (parentId) {
-            return { parentId, columnIndex };
-        }
+    const parentWrapper = element.parentElement?.closest('[data-component-id]');
+    if (parentWrapper) {
+      const parentId = parentWrapper.getAttribute('data-component-id');
+      const parentType = parentWrapper.getAttribute('data-component-type');
+
+      if (parentType === 'Columns') {
+          const columnEl = element.closest('[data-column-index]');
+          const colIndexStr = columnEl?.getAttribute('data-column-index');
+          const columnIndex = colIndexStr ? parseInt(colIndexStr, 10) : undefined;
+          return { parentId, columnIndex };
+      }
+      return { parentId };
     }
     
     return { parentId: null };
@@ -76,7 +78,8 @@ export function ComponentWrapper({
     
     const rect = e.currentTarget.getBoundingClientRect();
     const isContainer = type === 'Section' || type === 'Columns';
-    const edgeThreshold = isContainer ? rect.height * 0.25 : rect.height / 2;
+    // Use a smaller portion for dropping inside a container, making top/bottom easier to hit
+    const edgeThreshold = isContainer ? rect.height * 0.25 : rect.height * 0.33;
 
     if (e.clientY < rect.top + edgeThreshold) {
       setDropPosition('top');
@@ -98,11 +101,9 @@ export function ComponentWrapper({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDraggedOver(false);
     
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-      const { parentId: directParentId, columnIndex } = getParentInfo(e.currentTarget as HTMLElement);
       
       const isContainer = type === 'Section' || type === 'Columns';
       const dropInsideContainer = isContainer && dropPosition === null;
@@ -116,15 +117,24 @@ export function ComponentWrapper({
         finalParentId = id; // The container itself is the parent
         finalTargetId = null; // No specific target, append to the container
         finalPosition = 'bottom';
-        finalColumnIndex = (e.target as HTMLElement).closest('[data-column-index]') 
-          ? parseInt((e.target as HTMLElement).closest('[data-column-index]')!.getAttribute('data-column-index')!, 10)
-          : 0; // Default to first column if not specific
+        
+        // If it's a column, find which column we're dropping into
+        const columnEl = (e.target as HTMLElement).closest('[data-column-index]');
+        if (columnEl) {
+            const colIndexStr = columnEl.getAttribute('data-column-index');
+            finalColumnIndex = colIndexStr ? parseInt(colIndexStr, 10) : undefined;
+        } else {
+            // Dropped on the Section but not a specific column, default to first child list
+            finalColumnIndex = undefined; 
+        }
+
       } else {
         // Dropping above or below another component
-        finalParentId = directParentId;
+        const parentInfo = getParentInfo(e.currentTarget as HTMLElement);
+        finalParentId = parentInfo.parentId;
         finalTargetId = id;
         finalPosition = dropPosition || 'bottom';
-        finalColumnIndex = columnIndex;
+        finalColumnIndex = parentInfo.columnIndex;
       }
       
       if (data.type === 'new-component') {
@@ -139,6 +149,7 @@ export function ComponentWrapper({
     } catch (err) {
         console.error("Invalid drop data", err);
     } finally {
+        setIsDraggedOver(false);
         setDropPosition(null);
     }
   };
@@ -163,7 +174,7 @@ export function ComponentWrapper({
     >
       {isDraggedOver && dropPosition && (
          <div className={cn(
-            'absolute left-0 right-0 h-1 bg-primary z-20 pointer-events-none',
+            'absolute left-0 right-0 h-2 bg-primary z-20 pointer-events-none rounded-full',
             dropPosition === 'top' ? '-top-1' : '-bottom-1'
           )}></div>
       )}
