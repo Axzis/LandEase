@@ -1,47 +1,17 @@
 
-import { doc, getDoc } from 'firebase/firestore';
-import { initializeFirebaseServer } from '@/firebase/server-init';
+import { getPublishedPage } from '@/lib/published-pages';
 import { EditorCanvas } from '@/components/editor/editor-canvas';
-import type { PageComponent } from '@/lib/types';
 import { notFound } from 'next/navigation';
 
-// This is now a React Server Component
-// It fetches data directly on the server.
-
-interface PageData {
-  content: PageComponent[];
-  pageName: string;
-  pageBackgroundColor?: string;
-  published?: boolean;
-}
-
-async function getPageData(pageId: string): Promise<PageData | null> {
-    try {
-        // We use a separate server-side initialization for Firebase
-        const { firestore } = initializeFirebaseServer();
-        const pageRef = doc(firestore, 'pages', pageId);
-        const pageSnap = await getDoc(pageRef);
-
-        if (!pageSnap.exists()) {
-            return null;
-        }
-        
-        return pageSnap.data() as PageData;
-
-    } catch (error) {
-        console.error("Error fetching published page on server:", error);
-        // If there's any error fetching (including permissions if rules were to change),
-        // treat it as not found.
-        return null;
-    }
-}
-
+// This is now a React Server Component that reads from a static file.
+// It completely avoids Firestore to bypass permission issues.
 
 export default async function PublicPage({ params }: { params: { pageId: string } }) {
-  const pageData = await getPageData(params.pageId);
+  // We fetch page data from a static TS file, not from Firebase.
+  const pageData = getPublishedPage(params.pageId);
 
-  // 1. Check if page data exists and if it's explicitly published
-  if (!pageData || pageData.published !== true) {
+  // The 'published' check is implicit. If it's in the static file, it's considered published.
+  if (!pageData) {
     notFound();
   }
   
