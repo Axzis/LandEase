@@ -1,8 +1,6 @@
+
 import { EditorCanvas } from './editor-canvas';
 import { PageContent, PageComponent, ComponentType } from '@/lib/types';
-import { ComponentWrapper } from './renderable/component-wrapper';
-import { cn } from '@/lib/utils';
-
 
 interface CanvasProps {
   content: PageContent;
@@ -26,6 +24,9 @@ export function Canvas({ content, onSelectComponent, selectedComponentId, onDele
       if (data.type === 'new-component') {
         // Dropping on the canvas background adds the component to the end of the page
         onAddComponent(data.componentType, null, null);
+      } else if (data.type === 'move-component') {
+        // This case might be complex; for now, we handle adding new components.
+        // A proper implementation might involve finding the last element and dropping after it.
       }
     } catch(err) {
       console.error("Invalid drop data on canvas:", err);
