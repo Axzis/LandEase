@@ -22,16 +22,18 @@ export function Canvas({ content, onSelectComponent, selectedComponentId, onDele
     e.preventDefault();
     e.stopPropagation(); 
     
-    const isDroppingOnCanvasBackground = e.target === e.currentTarget;
-    if (!isDroppingOnCanvasBackground) {
+    // Only trigger if dropping directly on the canvas background, not on a child component
+    if (e.target !== e.currentTarget) {
         return;
     }
 
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      // Adding a component to the end of the root level
       if (data.type === 'new-component') {
         onAddComponent(data.componentType, null, null, 'bottom');
       } else if (data.type === 'move-component') {
+        // Moving a component to the end of the root level
         onMoveComponent(data.componentId, null, null, 'bottom');
       }
     } catch(err) {

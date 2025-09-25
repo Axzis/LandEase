@@ -52,32 +52,22 @@ export function ComponentWrapper({
     e.dataTransfer.setData('text/plain', data);
   };
 
-  const getParentInfo = (element: HTMLElement | null): {parentId: string | null, columnIndex: number | undefined} => {
-    if (!element) return { parentId: null, columnIndex: undefined };
+  const getParentInfo = (element: HTMLElement | null): { parentId: string | null, columnIndex?: number } => {
+    if (!element) return { parentId: null };
+
+    let current = element.parentElement?.closest('[data-component-id], [data-column-index]');
     
-    // Traverses up to find the closest parent that is a column or a section.
-    // If we are directly under the root, it will return null parentId.
-    let currentElement: HTMLElement | null = element;
-    while(currentElement && currentElement.parentElement) {
-        const parentElement = currentElement.parentElement;
-        const columnElement = parentElement.closest('[data-column-index]');
-        if (columnElement) {
-            const columnIndex = parseInt(columnElement.getAttribute('data-column-index')!, 10);
-            const parentId = columnElement.getAttribute('data-parent-id');
+    if (current) {
+        const parentId = current.getAttribute('data-component-id') || current.getAttribute('data-parent-id');
+        const columnIndexStr = current.getAttribute('data-column-index');
+        const columnIndex = columnIndexStr ? parseInt(columnIndexStr, 10) : undefined;
+        
+        if (parentId) {
             return { parentId, columnIndex };
         }
-        
-        const sectionElement = parentElement.closest('[data-component-type="Section"]');
-        if (sectionElement) {
-            const parentId = sectionElement.getAttribute('data-component-id');
-            if (parentId) return { parentId, columnIndex: undefined };
-        }
-        currentElement = parentElement;
-        // Stop if we hit the canvas root
-        if(parentElement.classList.contains('pb-[50vh]')) break;
     }
     
-    return { parentId: null, columnIndex: undefined };
+    return { parentId: null };
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -86,28 +76,14 @@ export function ComponentWrapper({
     
     const rect = e.currentTarget.getBoundingClientRect();
     const isContainer = type === 'Section' || type === 'Columns';
-    const { parentId } = getParentInfo(e.currentTarget as HTMLElement);
-    
-    // Only show top/bottom indicators for root level components
-    if (parentId === null) {
-      const midpoint = rect.top + rect.height / 2;
-      const position = e.clientY < midpoint ? 'top' : 'bottom';
-      setDropPosition(position);
-    } else if (isContainer) {
-      // Logic for dropping inside a container
-      const edgeThreshold = 20; // 20px from top or bottom edge
-      if (e.clientY < rect.top + edgeThreshold) {
-        setDropPosition('top');
-      } else if (e.clientY > rect.bottom - edgeThreshold) {
-        setDropPosition('bottom');
-      } else {
-        setDropPosition(null); // Indicates drop inside
-      }
+    const edgeThreshold = isContainer ? rect.height * 0.25 : rect.height / 2;
+
+    if (e.clientY < rect.top + edgeThreshold) {
+      setDropPosition('top');
+    } else if (e.clientY > rect.bottom - edgeThreshold) {
+      setDropPosition('bottom');
     } else {
-        // For non-container components inside other components
-        const midpoint = rect.top + rect.height / 2;
-        const position = e.clientY < midpoint ? 'top' : 'bottom';
-        setDropPosition(position);
+      setDropPosition(null); // Indicates drop inside for containers
     }
     
     setIsDraggedOver(true);
@@ -127,27 +103,37 @@ export function ComponentWrapper({
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
       const { parentId: directParentId, columnIndex } = getParentInfo(e.currentTarget as HTMLElement);
-
+      
       const isContainer = type === 'Section' || type === 'Columns';
       const dropInsideContainer = isContainer && dropPosition === null;
 
-      let targetIdToUse = id;
-      let parentIdToUse = directParentId;
-      let positionToUse = dropPosition || 'bottom'; // Default to bottom if null
+      let finalParentId: string | null;
+      let finalTargetId: string | null;
+      let finalPosition: 'top' | 'bottom';
+      let finalColumnIndex: number | undefined;
 
       if (dropInsideContainer) {
-        // Dropping INSIDE a Section or a Column container
-        targetIdToUse = null; // No specific target inside, just append
-        parentIdToUse = id; // The container itself is the parent
+        finalParentId = id; // The container itself is the parent
+        finalTargetId = null; // No specific target, append to the container
+        finalPosition = 'bottom';
+        finalColumnIndex = (e.target as HTMLElement).closest('[data-column-index]') 
+          ? parseInt((e.target as HTMLElement).closest('[data-column-index]')!.getAttribute('data-column-index')!, 10)
+          : 0; // Default to first column if not specific
+      } else {
+        // Dropping above or below another component
+        finalParentId = directParentId;
+        finalTargetId = id;
+        finalPosition = dropPosition || 'bottom';
+        finalColumnIndex = columnIndex;
       }
       
       if (data.type === 'new-component') {
-        onAddComponent(data.componentType, parentIdToUse, targetIdToUse, positionToUse, columnIndex);
+        onAddComponent(data.componentType, finalParentId, finalTargetId, finalPosition, finalColumnIndex);
       } else if (data.type === 'move-component') {
         const draggedId = data.componentId;
-        // Prevent dropping a component onto itself
-        if (draggedId === targetIdToUse) return;
-        onMoveComponent(draggedId, targetIdToUse, parentIdToUse, positionToUse, columnIndex);
+        if (draggedId === id) return;
+        
+        onMoveComponent(draggedId, finalTargetId, finalParentId, finalPosition, finalColumnIndex);
       }
 
     } catch (err) {
@@ -173,6 +159,7 @@ export function ComponentWrapper({
       )}
       data-component-id={id}
       data-component-type={type}
+      data-path={path}
     >
       {isDraggedOver && dropPosition && (
          <div className={cn(
