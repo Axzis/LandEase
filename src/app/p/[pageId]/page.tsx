@@ -1,11 +1,11 @@
 import { EditorCanvas } from "@/components/editor/editor-canvas";
-import { initializeFirebase } from "@/firebase";
+import { initializeFirebaseServer } from "@/firebase/server-init";
 import { doc, getDoc } from "firebase/firestore";
 import type { Metadata } from 'next'
 
 async function getPageData(pageId: string) {
   try {
-    const { firestore } = initializeFirebase();
+    const { firestore } = initializeFirebaseServer();
     const pageDoc = await getDoc(doc(firestore, "pages", pageId));
     if (pageDoc.exists()) {
       const data = pageDoc.data();

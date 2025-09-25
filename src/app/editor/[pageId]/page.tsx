@@ -1,12 +1,12 @@
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { EditorClient } from "@/components/editor/editor-client";
-import { initializeFirebase } from "@/firebase";
+import { initializeFirebaseServer } from "@/firebase/server-init";
 import { doc, getDoc } from "firebase/firestore";
 import { firebaseConfig } from "@/firebase/config";
 
 async function getPageData(pageId: string) {
   try {
-    const { firestore } = initializeFirebase();
+    const { firestore } = initializeFirebaseServer();
     const pageDoc = await getDoc(doc(firestore, "pages", pageId));
     if (pageDoc.exists()) {
       return { id: pageDoc.id, ...pageDoc.data() };
@@ -36,8 +36,6 @@ export default async function EditorPage({ params }: { params: { pageId: string 
     ...pageData,
     createdAt: pageData.createdAt?.toDate()?.toISOString() || null,
     lastUpdated: pageData.lastUpdated?.toDate()?.toISOString() || null,
-    // Pass the project ID to the client
-    projectId: firebaseConfig.projectId,
   };
 
 
