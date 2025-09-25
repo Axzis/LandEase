@@ -39,7 +39,7 @@ export const PublicForm = ({ pageId, pageName, ...props }: PublicFormProps) => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!pageId) {
+        if (!pageId || !firestore) {
             toast({ variant: 'destructive', title: 'Error', description: 'Cannot submit form. Page information is missing.' });
             return;
         }
@@ -47,7 +47,9 @@ export const PublicForm = ({ pageId, pageName, ...props }: PublicFormProps) => {
         setIsLoading(true);
 
         try {
-            await addDoc(collection(firestore, `submissions`), { // Changed: submissions at root
+            // Submissions are now stored in a subcollection under the specific page
+            const submissionsRef = collection(firestore, `pages/${pageId}/submissions`);
+            await addDoc(submissionsRef, {
                 pageId: pageId,
                 pageName: pageName,
                 formData: formData,

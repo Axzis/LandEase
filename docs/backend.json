@@ -74,6 +74,31 @@
             }
         },
         "required": ["userId", "pageName", "content", "published"]
+    },
+    "Submission": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Submission",
+        "type": "object",
+        "description": "Represents a single form submission from a public page.",
+        "properties": {
+            "pageId": {
+                "type": "string",
+                "description": "The ID of the page where the form was submitted."
+            },
+            "pageName": {
+                "type": "string",
+                "description": "The name of the page where the form was submitted."
+            },
+            "formData": {
+                "type": "object",
+                "description": "The data submitted through the form."
+            },
+            "submittedAt": {
+                "type": "string",
+                "format": "date-time"
+            }
+        },
+        "required": ["pageId", "formData", "submittedAt"]
     }
   },
   "auth": {
@@ -93,6 +118,12 @@
             "$ref": "#/entities/Page"
         },
         "description": "Stores all landing pages created by users."
+    },
+    "/pages/{pageId}/submissions/{submissionId}": {
+        "schema": {
+            "$ref": "#/entities/Submission"
+        },
+        "description": "Stores form submissions for a specific page."
     }
   }
 }
