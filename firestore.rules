@@ -1,114 +1,64 @@
 /**
- * @file Firebase Security Rules for LandEase Firestore.
+ * @fileoverview Firestore Security Rules for LandEase Prototyping.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model.  Users can only read and write their own data.  Public listing of user data is disallowed.
+ * This ruleset employs a strict user-ownership model. Users can only
+ * access their own data, preventing unauthorized access to other users' information.
+ * The rules are designed to be permissive regarding the shape of the data to facilitate
+ * rapid prototyping.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile information.
- * - /users/{userId}/submissions/{submissionId}: Stores form submissions specific to a user.
+ * - /users/{userId}: Stores user profile information. The `userId` must match the
+ *   authenticated user's UID.
+ * - /users/{userId}/submissions/{submissionId}: Stores form submissions associated
+ *   with a specific user. Access is restricted to the owning user.
  *
  * Key Security Decisions:
- * - No public listing of user profiles or submissions.
- * - User IDs in paths must match the authenticated user's UID.
- * - Data shape validation is relaxed to allow for prototyping.
+ * - User listing is disallowed.
+ * - Data shape validation is minimized to enable rapid prototyping and schema evolution.
+ * - Write operations are strictly limited to the authenticated user to prevent
+ *   unauthorized modifications.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Secure user profiles.  Only the authenticated user can read/write their own profile.
+     * @description Secure user profiles. Only the authenticated user can read and write their own profile.
      * @path /users/{userId}
-     * @allow (create) User with ID 'user123' can create their profile if authenticated as 'user123'.
-     * @allow (get) User with ID 'user123' can get their profile if authenticated as 'user123'.
-     * @allow (update) User with ID 'user123' can update their profile if authenticated as 'user123'.
-     * @allow (delete) User with ID 'user123' can delete their profile if authenticated as 'user123'.
-     * @deny (create) User with ID 'user456' cannot create a profile for 'user123'.
-     * @deny (get) User with ID 'user456' cannot get the profile for 'user123'.
-     * @principle Enforces document ownership for all operations.
+     * @allow (get, create, update, delete) - Authenticated user with matching userId.
+     * @deny (get, create, update, delete) - Any other user or unauthenticated user.
+     * @principle Enforces document ownership.
      */
     match /users/{userId} {
-      // Helper function to check if the authenticated user is the owner of the document
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-      
-      // Helper function to check if the authenticated user is the owner of the document AND the document exists
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-      // Allow the user to create their own profile, enforcing that the userId matches auth.uid
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-
-      // Allow the user to get their own profile
       allow get: if isOwner(userId);
-
-      // Allow the user to list their own profile (this is unusual but included for completeness)
-      allow list: if isOwner(userId);
-
-      // Allow the user to update their own profile
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-
-      // Allow the user to delete their own profile
-      allow delete: if isExistingOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Secure form submissions for a specific user.  Only the authenticated user can manage their own submissions.
+     * @description Secure form submissions for a specific user.
      * @path /users/{userId}/submissions/{submissionId}
-     * @allow (create) User with ID 'user123' can create a submission under their profile.
-     * @allow (get) User with ID 'user123' can get a submission under their profile.
-     * @allow (update) User with ID 'user123' can update a submission under their profile.
-     * @allow (delete) User with ID 'user123' can delete a submission under their profile.
-     * @deny (create) User with ID 'user456' cannot create a submission under 'user123' profile.
-     * @deny (get) User with ID 'user456' cannot get a submission under 'user123' profile.
-     * @principle Enforces document ownership and prevents cross-user data access.
+     * @allow (get, list, create, update, delete) - Authenticated user with matching userId.
+     * @deny (get, list, create, update, delete) - Any other user or unauthenticated user.
+     * @principle Enforces document ownership and prevents unauthorized access.
      */
     match /users/{userId}/submissions/{submissionId} {
-      // Helper function to check if the authenticated user is the owner of the document
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-      
-      // Helper function to check if the authenticated user is the owner of the document AND the document exists
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-      // Allow the user to create a submission under their profile
-      allow create: if isOwner(userId);
-
-      // Allow the user to get a submission under their profile
       allow get: if isOwner(userId);
-
-      // Allow the user to list submissions under their profile.
       allow list: if isOwner(userId);
-
-      // Allow the user to update a submission under their profile
-      allow update: if isExistingOwner(userId);
-
-      // Allow the user to delete a submission under their profile
-      allow delete: if isExistingOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
-    
-     /**
-      * @description Allows public read access to pages.
-      * @path /pages/{pageId}
-      * @allow (get) Any user can read a page.
-      * @allow (list) Any user can list pages.
-      * @deny (create) No user can create a page.
-      * @deny (update) No user can update a page.
-      * @deny (delete) No user can delete a page.
-      * @principle Allows public read access while denying all write operations.
-      */
-    match /pages/{pageId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
   }
 }
