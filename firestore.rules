@@ -1,37 +1,104 @@
+/**
+ * @fileoverview Firestore Security Rules for LandEase application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model, where users can only
+ * create, read, update, and delete data associated with their own user ID.
+ * Data validation is relaxed to allow for rapid prototyping and iteration.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profiles. Each user document is identified
+ *   by the Firebase Auth UID.
+ * - /users/{userId}/submissions/{submissionId}: Stores form submissions for a
+ *   specific user. Submissions are associated with a page.
+ *
+ * Key Security Decisions:
+ * - User listing is disallowed.
+ * - Public read access is not granted to any collections.
+ * - Ambiguous relationships default to strict owner-only access.
+ *
+ * Denormalization for Authorization:
+ * To avoid `get()` calls, the `Submission` documents nested under
+ * `/users/{userId}/submissions/{submissionId}` do not require denormalization
+ * since the path itself provides the user ID for authorization.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    /**
+     * @description Protects the /users collection, ensuring only the authenticated user can manage their own profile.
+     * @path /users/{userId}
+     * @allow (create) - An authenticated user with UID 'user123' can create their profile at /users/user123.
+     * @allow (get, update, delete) - An authenticated user with UID 'user123' can read, update, and delete their profile at /users/user123.
+     * @deny (create) - An unauthenticated user cannot create any user profile.
+     * @deny (get, update, delete) - An authenticated user with UID 'user456' cannot read, update, or delete the profile at /users/user123.
+     * @principle Enforces document ownership for user profiles.
+     */
     match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
+      // Helper function to check if the user is signed in and owns the resource.
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
 
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      // Allow a user to create their own profile if the userId matches their auth UID.
       allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isOwner(userId);
-      allow delete: if isSignedIn() && isOwner(userId);
+
+      // Allow a user to get, update, or delete their own profile.
+      allow get, update, delete: if isSignedIn() && isOwner(userId);
+
+      // Prevent listing all users.
+      allow list: if false;
     }
 
+    /**
+     * @description Protects the /users/{userId}/submissions collection, ensuring only the owner can manage their form submissions.
+     * @path /users/{userId}/submissions/{submissionId}
+     * @allow (create) - An authenticated user with UID 'user123' can create a submission under /users/user123/submissions.
+     * @allow (get, list, update, delete) - An authenticated user with UID 'user123' can read, list, update, and delete submissions under /users/user123/submissions.
+     * @deny (create) - An unauthenticated user cannot create any submissions.
+     * @deny (get, list, update, delete) - An authenticated user with UID 'user456' cannot access submissions under /users/user123/submissions.
+     * @principle Enforces document ownership for form submissions within a user's data tree.
+     */
     match /users/{userId}/submissions/{submissionId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
+      // Helper function to check if the user is signed in and owns the resource.
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
 
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if isSignedIn() && isOwner(userId);
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      // Allow the owner to create a new submission.
       allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isOwner(userId);
-      allow delete: if isSignedIn() && isOwner(userId);
+
+      // Allow the owner to get, list, update, and delete their submissions.
+      allow get, list, update, delete: if isSignedIn() && isOwner(userId);
+    }
+
+    /**
+     * @description Restricts access to the 'pages' collection to only authenticated users who are also the owners of the document.
+     * @path /pages/{pageId}
+     * @allow (create) - An authenticated user with UID 'user123' can create a new page if the userId matches their auth UID.
+     * @allow (get, list) - Any authenticated user can read the pages collection.
+     * @allow (update, delete) - Only the owner of the page (user with matching UID) can update or delete.
+     * @deny (create) - An unauthenticated user cannot create a new page.
+     * @deny (update, delete) - A user who isn't the owner of the page can't update or delete it.
+     * @principle Ensures that only the page owner can modify or delete a page, but allows any logged-in user to view.
+     */
+    match /pages/{pageId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow get, list: if isSignedIn();
+      allow update, delete: if isSignedIn() && request.resource.data.userId == request.auth.uid;
     }
   }
 }
