@@ -31,12 +31,10 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
       auth={firebaseServices.auth}
       firestore={firebaseServices.firestore}
     >
-      {/* FirebaseErrorListener needs to be inside FirebaseProvider but outside AuthProvider */}
-      {/* to catch errors even when auth state is loading. */}
-      <FirebaseErrorListener />
       <AuthProvider>
         {children}
       </AuthProvider>
+      <FirebaseErrorListener />
     </FirebaseProvider>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { useFirestore, useDoc, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -373,7 +373,15 @@ export function EditorClient({ pageId }: EditorClientProps) {
       content: JSON.parse(JSON.stringify(content)),
       lastUpdated: serverTimestamp(),
       pageBackgroundColor,
+      published: isPublished
     };
+
+    // For live preview, save current state to localStorage
+    try {
+        localStorage.setItem(`preview_${pageId}`, JSON.stringify(dataToSave));
+    } catch (e) {
+        console.warn("Could not save preview to localStorage", e);
+    }
 
     setDoc(pageDocRef, dataToSave, { merge: true })
       .then(() => {
@@ -384,12 +392,12 @@ export function EditorClient({ pageId }: EditorClientProps) {
         setIsDirty(false);
       })
       .catch((error) => {
-        const permissionError = new FirestorePermissionError({
-            path: pageDocRef.path,
-            operation: 'update',
-            requestResourceData: dataToSave,
+        console.error("Error saving page: ", error);
+        toast({
+          variant: 'destructive',
+          title: 'Save Failed',
+          description: 'Could not save your changes. Please try again.',
         });
-        errorEmitter.emit('permission-error', permissionError);
       })
       .finally(() => {
         setIsSaving(false);
@@ -397,33 +405,14 @@ export function EditorClient({ pageId }: EditorClientProps) {
   };
 
   const handlePublishToggle = (published: boolean) => {
-    if (!pageDocRef) return;
-    setIsSaving(true);
-
-    const dataToUpdate = {
-        published,
-        lastUpdated: serverTimestamp(),
-    };
-
-    setDoc(pageDocRef, dataToUpdate, { merge: true })
-      .then(() => {
-        setIsPublished(published);
+    setIsPublished(published);
+    setIsDirty(true); // Mark as dirty to enable saving
+    handleSave().then(() => {
         toast({
-          title: `Page ${published ? 'Published' : 'Unpublished'}`,
-          description: `Your page is now ${published ? 'live' : 'private'}.`,
+            title: `Page ${published ? 'Published' : 'Unpublished'}`,
+            description: `Your page is now ${published ? 'live' : 'private'}.`,
         });
-      })
-      .catch((error) => {
-         const permissionError = new FirestorePermissionError({
-            path: pageDocRef.path,
-            operation: 'update',
-            requestResourceData: dataToUpdate,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      })
-      .finally(() => {
-        setIsSaving(false);
-      });
+    });
   }
 
   const [publicUrl, setPublicUrl] = useState('');
