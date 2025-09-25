@@ -9,7 +9,7 @@ import { Rocket } from 'lucide-react';
 // A map to dynamically render components based on their type
 const componentMap: { [key: string]: React.ComponentType<any> } = {
     Section: React.forwardRef<HTMLElement, { backgroundColor: string, padding: string, [key: string]: any }>(({ backgroundColor, padding, ...rest }, ref) => (
-        <section ref={ref} style={{ backgroundColor, padding: padding || '0px' }} {...rest} />
+        <section ref={ref} style={{ backgroundColor, padding }} {...rest} />
     )),
     Heading: React.forwardRef<HTMLHeadingElement, { level: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6', text: string, align: string, [key: string]: any }>(({ level, text, align, ...rest }, ref) => {
         const Tag = level;
