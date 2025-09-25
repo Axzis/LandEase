@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { collection, doc, addDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
-import { useAuth, useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, doc, addDoc, serverTimestamp, writeBatch, updateDoc, arrayUnion } from 'firebase/firestore';
+import { useAuth, useFirestore, useUser, useDoc, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
@@ -16,9 +16,12 @@ import { createDefaultPageContent } from '@/lib/utils';
 import { Loader2, LogOut, PlusCircle } from 'lucide-react';
 
 interface UserPageLink {
-  id: string;
   pageId: string;
   pageName: string;
+}
+
+interface UserData {
+    pages: UserPageLink[];
 }
 
 export function DashboardClient() {
@@ -30,13 +33,13 @@ export function DashboardClient() {
 
   const [isCreatingPage, setIsCreatingPage] = useState(false);
 
-  // Get the list of page IDs for the current user
-  const userPagesQuery = useMemoFirebase(() => {
+  // Get the user document which contains the list of pages
+  const userDocRef = useMemoFirebase(() => {
     if (!user || !firestore) return null;
-    return collection(firestore, `user_pages/${user.uid}/pages`);
+    return doc(firestore, `users/${user.uid}`);
   }, [firestore, user]);
 
-  const { data: userPageLinks, isLoading, error } = useCollection<UserPageLink>(userPagesQuery);
+  const { data: userData, isLoading, error } = useDoc<UserData>(userDocRef);
 
   const handleCreatePage = async () => {
     if (!user || !firestore) return;
@@ -44,11 +47,13 @@ export function DashboardClient() {
 
     try {
         const batch = writeBatch(firestore);
+        const pageName = 'Untitled Page';
 
+        // 1. Create the new page document in the 'pages' collection
         const newPageRef = doc(collection(firestore, 'pages'));
         const newPageData = {
           userId: user.uid,
-          pageName: 'Untitled Page',
+          pageName: pageName,
           content: createDefaultPageContent(),
           createdAt: serverTimestamp(),
           lastUpdated: serverTimestamp(),
@@ -56,9 +61,11 @@ export function DashboardClient() {
         };
         batch.set(newPageRef, newPageData);
 
-        // Link this new page to the user
-        const userPageLinkRef = doc(collection(firestore, `user_pages/${user.uid}/pages`));
-        batch.set(userPageLinkRef, { pageId: newPageRef.id, pageName: 'Untitled Page' });
+        // 2. Add a reference to this new page in the user's document
+        const userRef = doc(firestore, `users/${user.uid}`);
+        batch.update(userRef, {
+            pages: arrayUnion({ pageId: newPageRef.id, pageName: pageName })
+        });
         
         await batch.commit();
 
@@ -119,12 +126,12 @@ export function DashboardClient() {
         ) : error ? (
            <div className="text-center py-20 px-4 border-2 border-dashed rounded-lg border-destructive/50 bg-destructive/10">
               <h2 className="text-2xl font-semibold text-destructive-foreground">Error Loading Pages</h2>
-              <p className="mt-2 text-destructive-foreground/80">Could not load page list: {error.message}</p>
+              <p className="mt-2 text-destructive-foreground/80">Could not load your data: {error.message}</p>
             </div>
-        ) : userPageLinks && userPageLinks.length > 0 ? (
+        ) : userData && userData.pages && userData.pages.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {userPageLinks.map(link => (
-              <PageCard key={link.id} pageId={link.pageId} />
+            {userData.pages.map(link => (
+              <PageCard key={link.pageId} pageId={link.pageId} />
             ))}
           </div>
         ) : (

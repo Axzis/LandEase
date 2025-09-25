@@ -50,6 +50,18 @@
           "type": "string",
           "description": "Email address of the user.",
           "format": "email"
+        },
+        "pages": {
+            "type": "array",
+            "description": "An array of page references owned by the user.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "pageId": { "type": "string" },
+                    "pageName": { "type": "string" }
+                },
+                "required": ["pageId", "pageName"]
+            }
         }
       },
       "required": [

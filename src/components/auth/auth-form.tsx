@@ -11,7 +11,7 @@ import {
   updateProfile,
 } from 'firebase/auth';
 import { useAuth, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { doc, setDoc, serverTimestamp, addDoc, collection, writeBatch } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, collection, writeBatch } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -71,15 +71,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         
         const batch = writeBatch(firestore);
 
-        const userDocRef = doc(firestore, "users", user.uid);
-        const userDocData = {
-          uid: user.uid,
-          email: user.email,
-          displayName: values.name,
-          createdAt: serverTimestamp(),
-        };
-        batch.set(userDocRef, userDocData);
-        
+        // Create the page document
         const newPageRef = doc(collection(firestore, 'pages'));
         const defaultPageData = {
             userId: user.uid,
@@ -91,12 +83,23 @@ export function AuthForm({ mode }: AuthFormProps) {
         };
         batch.set(newPageRef, defaultPageData);
 
-        const userPageLinkRef = doc(collection(firestore, `user_pages/${user.uid}/pages`));
-        batch.set(userPageLinkRef, { pageId: newPageRef.id, pageName: 'My First Page' });
+        // Create the user document with the reference to the new page
+        const userDocRef = doc(firestore, "users", user.uid);
+        const userDocData = {
+          uid: user.uid,
+          email: user.email,
+          displayName: values.name,
+          createdAt: serverTimestamp(),
+          pages: [
+            { pageId: newPageRef.id, pageName: 'My First Page' }
+          ]
+        };
+        batch.set(userDocRef, userDocData);
         
         await batch.commit().catch(error => {
            toast({ variant: 'destructive', title: 'Error during signup process', description: 'Failed to create initial user data.'});
            console.error("Signup batch commit failed", error);
+           // Optionally re-throw or handle more gracefully
         });
         
         toast({ title: "Account created successfully!" });
