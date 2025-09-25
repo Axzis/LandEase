@@ -85,18 +85,19 @@ export function EditorClient({ pageData }: EditorClientProps) {
     setSelectedComponentId(id);
   };
   
-  const findComponent = (components: PageComponent[], id: string): PageComponent | null => {
-    for (const component of components) {
-        if (component.id === id) return component;
+  const findComponent = (components: PageComponent[], id: string): { component: PageComponent | null, parent: PageComponent[] | null, index: number } => {
+    for (let i = 0; i < components.length; i++) {
+        const component = components[i];
+        if (component.id === id) return { component, parent: components, index: i };
         if (component.children) {
             const found = findComponent(component.children, id);
-            if (found) return found;
+            if (found.component) return found;
         }
     }
-    return null;
+    return { component: null, parent: null, index: -1 };
   };
 
-  const selectedComponent = selectedComponentId ? findComponent(content, selectedComponentId) : null;
+  const selectedComponent = selectedComponentId ? findComponent(content, selectedComponentId).component : null;
 
   const updateComponentProps = (id: string, newProps: any) => {
     const newContent = JSON.parse(JSON.stringify(content));
@@ -136,7 +137,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
     setIsDirty(true);
   };
 
-  const handleAddComponent = (type: ComponentType, parentId: string | null, targetId: string | null = null) => {
+  const handleAddComponent = (type: ComponentType, parentId: string | null, targetId: string | null = null, position: 'top' | 'bottom' = 'top') => {
     const newComponent = createNewComponent(type);
     
     const addRecursively = (items: PageComponent[]): PageComponent[] => {
@@ -145,34 +146,33 @@ export function EditorClient({ pageData }: EditorClientProps) {
         if (targetId === null) { // Add to end of root
           return [...items, newComponent];
         }
-        // Add before a specific root component
-        const newItems: PageComponent[] = [];
-        for (const item of items) {
-          if (item.id === targetId) {
-            newItems.push(newComponent);
-          }
-          newItems.push(item);
+        // Add before or after a specific root component
+        const targetIndex = items.findIndex(item => item.id === targetId);
+        if (targetIndex !== -1) {
+            const newItems = [...items];
+            newItems.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, newComponent);
+            return newItems;
         }
-        return newItems;
+        return [...items, newComponent]; // Fallback to adding at the end
       }
 
       // Add to a nested level (i.e., inside a Section)
       return items.map(item => {
         if (item.id === parentId && item.children) {
-          let newChildren = [...item.children];
+          const newChildren = [...item.children];
           if (targetId === null) { // Add to end of section
             newChildren.push(newComponent);
-          } else { // Add before specific component in section
-            const newChildrenWithTarget: PageComponent[] = [];
-            for (const child of newChildren) {
-              if (child.id === targetId) newChildrenWithTarget.push(newComponent);
-              newChildrenWithTarget.push(child);
+          } else { // Add before or after specific component in section
+            const targetIndex = newChildren.findIndex(child => child.id === targetId);
+            if (targetIndex !== -1) {
+                newChildren.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, newComponent);
+            } else {
+                newChildren.push(newComponent); // Fallback to adding at the end
             }
-            newChildren = newChildrenWithTarget;
           }
           return { ...item, children: newChildren };
         } else if (item.children) {
-          return { ...item, children: addRecursively(item.children as PageComponent[]) };
+          return { ...item, children: addRecursively(item.children) };
         }
         return item;
       });
@@ -183,7 +183,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
     setIsDirty(true);
   };
 
-  const handleMoveComponent = (draggedId: string, targetId: string) => {
+  const handleMoveComponent = (draggedId: string, targetId: string, parentId: string | null, position: 'top' | 'bottom') => {
     if (draggedId === targetId) return;
 
     let componentToMove: PageComponent | null = null;
@@ -203,60 +203,37 @@ export function EditorClient({ pageData }: EditorClientProps) {
     };
 
     const contentAfterRemoval = removeComponent(JSON.parse(JSON.stringify(content)), draggedId);
-    
-    if (!componentToMove) return; // Component to move not found
+    if (!componentToMove) return;
 
-    // Function to recursively find the target and insert the component
-    const insertComponent = (items: PageComponent[], tId: string, parentId: string | null): [PageComponent[], boolean] => {
-        let inserted = false;
-
-        // Special case: Drop into a section
-        if (parentId) {
-             const newItems = items.map(item => {
-                if (item.id === parentId && item.children) {
-                    const newChildren: PageComponent[] = [];
-                    item.children.forEach(child => {
-                        if (child.id === tId) {
-                            newChildren.push(componentToMove!);
-                            inserted = true;
-                        }
-                        newChildren.push(child);
-                    });
-                     if (!inserted) {
-                        newChildren.push(componentToMove!);
-                        inserted = true;
-                    }
-                    return { ...item, children: newChildren };
-                } else if (item.children) {
-                     const [updatedChildren, wasInserted] = insertComponent(item.children, tId, parentId);
-                     if (wasInserted) inserted = true;
-                     return { ...item, children: updatedChildren };
-                }
-                return item;
-             });
-             return [newItems, inserted];
-        }
-
-        const newItems: PageComponent[] = [];
-        for (const item of items) {
-            if (item.id === tId) {
-                newItems.push(componentToMove!);
-                inserted = true;
+    const insertComponent = (items: PageComponent[]) => {
+      if (parentId) { // Dropped inside a section
+        return items.map(item => {
+          if (item.id === parentId && item.children) {
+            const newChildren = [...item.children];
+            const targetIndex = newChildren.findIndex(c => c.id === targetId);
+            if (targetIndex !== -1) {
+              newChildren.splice(targetIndex + (position === 'bottom' ? 1: 0), 0, componentToMove!);
+            } else {
+              newChildren.push(componentToMove!); // Append if target not found (e.g., dropped on section itself)
             }
-            newItems.push(item);
-        }
-
-        return [newItems, inserted];
+            return { ...item, children: newChildren };
+          } else if (item.children) {
+            return { ...item, children: insertComponent(item.children) };
+          }
+          return item;
+        });
+      } else { // Dropped on root
+          const newItems = [...items];
+          const targetIndex = newItems.findIndex(c => c.id === targetId);
+          if (targetIndex !== -1) {
+            newItems.splice(targetIndex + (position === 'bottom' ? 1: 0), 0, componentToMove!);
+            return newItems;
+          }
+          return newItems; // Should not happen if targetId is always valid
+      }
     };
     
-    let [newContentWithInsert, wasInserted] = insertComponent(contentAfterRemoval, targetId, null);
-
-    // If not inserted (e.g. target was not found or was a root drop), add to the end
-    if (!wasInserted) {
-        newContentWithInsert.push(componentToMove);
-    }
-    
-    setContent(newContentWithInsert);
+    setContent(insertComponent(contentAfterRemoval));
     setIsDirty(true);
   };
 

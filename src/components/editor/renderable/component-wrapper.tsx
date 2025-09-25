@@ -9,16 +9,18 @@ import { PageComponent, ComponentType } from '@/lib/types';
 interface ComponentWrapperProps {
   children: React.ReactNode;
   component: PageComponent;
+  path: string;
   isSelected: boolean;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, path: string) => void;
   onDelete: (id: string) => void;
-  onAddComponent: (type: ComponentType, parentId: string | null, targetId: string | null) => void;
-  onMoveComponent: (draggedId: string, targetId: string) => void;
+  onAddComponent: (type: ComponentType, parentId: string | null, targetId: string | null, position: 'top' | 'bottom') => void;
+  onMoveComponent: (draggedId: string, targetId: string, parentId: string | null, position: 'top' | 'bottom') => void;
 }
 
 export function ComponentWrapper({
   children,
   component,
+  path,
   isSelected,
   onSelect,
   onDelete,
@@ -31,7 +33,7 @@ export function ComponentWrapper({
 
   const handleSelect = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onSelect(id);
+    onSelect(id, path);
   };
 
   const handleDelete = (e: React.MouseEvent) => {
@@ -44,6 +46,7 @@ export function ComponentWrapper({
     const data = JSON.stringify({
       type: 'move-component',
       componentId: id,
+      path: path
     });
     e.dataTransfer.setData('text/plain', data);
   };
@@ -51,17 +54,14 @@ export function ComponentWrapper({
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    const dragData = e.dataTransfer.types;
-    if (dragData.includes('text/plain')) {
-      setIsDraggedOver(true);
-      if (type !== 'Section') {
-        const rect = e.currentTarget.getBoundingClientRect();
-        const midpoint = rect.top + rect.height / 2;
-        setDropPosition(e.clientY < midpoint ? 'top' : 'bottom');
-      } else {
-        setDropPosition(null);
-      }
+    setIsDraggedOver(true);
+
+    if (type === 'Section') {
+      setDropPosition(null); // No top/bottom indicator for sections
+    } else {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const midpoint = rect.top + rect.height / 2;
+      setDropPosition(e.clientY < midpoint ? 'top' : 'bottom');
     }
   };
 
@@ -79,34 +79,17 @@ export function ComponentWrapper({
 
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-      
+      const parentId = type === 'Section' ? id : null;
+
       if (data.type === 'new-component') {
-        let parentId: string | null = null;
-        let targetId: string | null = id; // Default to inserting before the current component
-
-        if (type === 'Section') {
-          // Dropping inside a section
-          parentId = id;
-          targetId = null; // Append to the end of the section
-        } else {
-            // Dropping on a regular component, insert before it at the root
-            if (dropPosition === 'bottom') {
-                console.warn("Dropping at the bottom of a non-section component is not fully supported yet. Placing before.");
-                // A more complex logic would be needed to find the 'next' sibling and insert before it.
-                // For now, we'll just insert before the current one.
-            }
-        }
-        
-        onAddComponent(data.componentType, parentId, targetId);
-
+        const targetIdForNew = type === 'Section' ? null : id;
+        const positionForNew = dropPosition || 'top';
+        onAddComponent(data.componentType, parentId, targetIdForNew, positionForNew);
       } else if (data.type === 'move-component') {
-        let targetIdForMove = id;
-        if (type === 'Section' && data.componentId !== id) {
-          // If we drop a component ON a section, we mean to drop it INSIDE
-          // So we don't move it before the section, but add it as a child.
-          // This requires a different logic, for now we let it fall through to onMoveComponent.
-        }
-        onMoveComponent(data.componentId, targetIdForMove);
+        const draggedId = data.componentId;
+        const targetIdForMove = id;
+        const positionForMove = dropPosition || 'top';
+        onMoveComponent(draggedId, targetIdForMove, parentId, positionForMove);
       }
     } catch (err) {
         console.error("Invalid drop data", err);
@@ -123,10 +106,12 @@ export function ComponentWrapper({
       draggable="true"
       className={cn(
         'relative p-1 my-1 transition-all duration-200 group',
-        isSelected && 'ring-2 ring-primary ring-offset-2 rounded-md',
-        !isSelected && 'hover:ring-2 hover:ring-primary/50 rounded-md',
-        isDraggedOver && type === 'Section' && 'outline-dashed outline-2 outline-primary outline-offset-2'
+        { 'ring-2 ring-primary ring-offset-2 rounded-md': isSelected },
+        { 'hover:ring-2 hover:ring-primary/50 rounded-md': !isSelected },
+        { 'bg-primary/10': isDraggedOver && type === 'Section' }
       )}
+      data-component-id={id}
+      data-component-type={type}
     >
       {isDraggedOver && type !== 'Section' && (
          <div className={cn(

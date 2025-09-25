@@ -9,7 +9,7 @@ interface CanvasProps {
   selectedComponentId: string | null;
   onDeleteComponent: (id: string) => void;
   onAddComponent: (type: ComponentType, parentId: string | null, targetId: string | null) => void;
-  onMoveComponent: (draggedId: string, targetId: string) => void;
+  onMoveComponent: (draggedId: string, targetId: string, parentId: string | null, position: 'top' | 'bottom') => void;
 }
 
 export function Canvas({ content, onSelectComponent, selectedComponentId, onDeleteComponent, onAddComponent, onMoveComponent }: CanvasProps) {
@@ -19,16 +19,16 @@ export function Canvas({ content, onSelectComponent, selectedComponentId, onDele
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation(); // Prevent drop from bubbling to child wrappers
-    if (e.target !== e.currentTarget) {
-        // This drop should be handled by a nested ComponentWrapper, not the main canvas.
+    e.stopPropagation(); 
+    
+    const isDroppingOnCanvasBackground = e.target === e.currentTarget;
+    if (!isDroppingOnCanvasBackground) {
         return;
     }
 
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
       if (data.type === 'new-component') {
-        // Dropping on the canvas background adds the component to the end of the page at root level.
         onAddComponent(data.componentType, null, null);
       }
     } catch(err) {
@@ -40,7 +40,6 @@ export function Canvas({ content, onSelectComponent, selectedComponentId, onDele
     <div 
       className="p-4 bg-white h-full relative"
       onClick={(e) => {
-        // Clicks on the canvas background deselect components
         if (e.target === e.currentTarget) {
           onSelectComponent(null);
         }
