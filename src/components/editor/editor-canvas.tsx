@@ -1,3 +1,4 @@
+
 'use client';
 
 import { PageContent, PageComponent, ComponentType } from '@/lib/types';
@@ -10,6 +11,11 @@ import { Rocket } from 'lucide-react';
 const componentMap: { [key: string]: React.ComponentType<any> } = {
     Section: React.forwardRef<HTMLElement, { backgroundColor: string, padding: string, display: string, flexDirection: string, alignItems: string, justifyContent: string, gap: string, [key: string]: any }>(({ backgroundColor, padding, display, flexDirection, alignItems, justifyContent, gap, ...rest }, ref) => (
         <section ref={ref} style={{ backgroundColor, padding, display, flexDirection, alignItems, justifyContent, gap }} {...rest} />
+    )),
+    Columns: React.forwardRef<HTMLDivElement, { numberOfColumns: number, gap: string, children: React.ReactNode, [key: string]: any }>(({ numberOfColumns, gap, children, ...rest }, ref) => (
+        <div ref={ref} style={{ display: 'grid', gridTemplateColumns: `repeat(${numberOfColumns}, 1fr)`, gap }} {...rest}>
+            {children}
+        </div>
     )),
     Heading: React.forwardRef<HTMLHeadingElement, { level: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6', text: string, align: string, [key: string]: any }>(({ level, text, align, ...rest }, ref) => {
         const Tag = level;
@@ -82,8 +88,8 @@ function RenderComponent({
     onSelectComponent?: (id: string, path: string) => void,
     selectedComponentId?: string | null,
     onDeleteComponent?: (id: string) => void
-    onAddComponent?: (type: ComponentType, parentId: string | null, targetId: string | null, position: 'top' | 'bottom') => void;
-    onMoveComponent?: (draggedId: string, targetId: string, parentId: string | null, position: 'top' | 'bottom') => void;
+    onAddComponent?: (type: ComponentType, parentId: string | null, targetId: string | null, position: 'top' | 'bottom', columnIndex?: number) => void;
+    onMoveComponent?: (draggedId: string, targetId: string | null, parentId: string | null, position: 'top' | 'bottom', columnIndex?: number) => void;
     readOnly?: boolean;
     parentPath?: string;
 }) {
@@ -92,21 +98,43 @@ function RenderComponent({
 
   const currentPath = parentPath ? `${parentPath}.${component.id}` : component.id;
 
-  const componentContent = (
-    <Component {...component.props}>
-        {component.children && component.children.map(child => (
-          <RenderComponent 
-            key={child.id} 
-            component={child as PageComponent} 
+  let childrenToRender;
+
+  if (component.type === 'Columns' && component.children) {
+    childrenToRender = component.children.map((column, colIndex) => (
+        <ColumnDropZone 
+            key={colIndex}
+            components={column}
+            columnIndex={colIndex}
+            parentId={component.id}
+            parentPath={currentPath}
             onSelectComponent={onSelectComponent}
             selectedComponentId={selectedComponentId}
             onDeleteComponent={onDeleteComponent}
             onAddComponent={onAddComponent}
             onMoveComponent={onMoveComponent}
             readOnly={readOnly}
-            parentPath={currentPath}
-          />
-        ))}
+        />
+    ));
+  } else if (component.children) {
+      childrenToRender = (component.children as PageComponent[]).map(child => (
+        <RenderComponent 
+          key={child.id} 
+          component={child} 
+          onSelectComponent={onSelectComponent}
+          selectedComponentId={selectedComponentId}
+          onDeleteComponent={onDeleteComponent}
+          onAddComponent={onAddComponent}
+          onMoveComponent={onMoveComponent}
+          readOnly={readOnly}
+          parentPath={currentPath}
+        />
+      ));
+  }
+
+  const componentContent = (
+    <Component {...component.props}>
+        {childrenToRender}
     </Component>
   );
 
@@ -129,13 +157,52 @@ function RenderComponent({
   );
 }
 
+function ColumnDropZone({ components, columnIndex, parentId, parentPath, ...props }: any) {
+    const { onAddComponent, onMoveComponent } = props;
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+        
+        if (data.type === 'new-component') {
+            onAddComponent(data.componentType, parentId, null, 'bottom', columnIndex);
+        } else if (data.type === 'move-component') {
+            onMoveComponent(data.componentId, null, parentId, 'bottom', columnIndex);
+        }
+    };
+    
+    return (
+        <div 
+            className="p-2 border border-dashed border-gray-400 min-h-[100px] flex flex-col gap-2 bg-gray-50/50"
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            data-column-index={columnIndex}
+            data-parent-id={parentId}
+        >
+            {components.map((component: PageComponent) => (
+                <RenderComponent key={component.id} component={component} parentPath={`${parentPath}.col${columnIndex}`} {...props} />
+            ))}
+            {components.length === 0 && (
+                 <div className="text-center text-xs text-gray-500 self-center">Drop here</div>
+            )}
+        </div>
+    )
+}
+
 interface EditorCanvasProps {
     content: PageContent;
     onSelectComponent?: (id: string | null) => void;
     selectedComponentId?: string | null;
     onDeleteComponent?: (id: string) => void;
-    onAddComponent?: (type: ComponentType, parentId: string | null, targetId: string | null, position: 'top' | 'bottom') => void;
-    onMoveComponent?: (draggedId: string, targetId: string, parentId: string | null, position: 'top' | 'bottom') => void;
+    onAddComponent?: (type: ComponentType, parentId: string | null, targetId: string | null, position: 'top' | 'bottom', columnIndex?: number) => void;
+    onMoveComponent?: (draggedId: string, targetId: string | null, parentId: string | null, position: 'top' | 'bottom', columnIndex?: number) => void;
     readOnly?: boolean;
   }
 

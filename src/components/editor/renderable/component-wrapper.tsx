@@ -1,3 +1,4 @@
+
 'use client';
 
 import { cn } from '@/lib/utils';
@@ -13,8 +14,8 @@ interface ComponentWrapperProps {
   isSelected: boolean;
   onSelect: (id: string, path: string) => void;
   onDelete: (id: string) => void;
-  onAddComponent: (type: ComponentType, parentId: string | null, targetId: string | null, position: 'top' | 'bottom') => void;
-  onMoveComponent: (draggedId: string, targetId: string, parentId: string | null, position: 'top' | 'bottom') => void;
+  onAddComponent: (type: ComponentType, parentId: string | null, targetId: string | null, position: 'top' | 'bottom', columnIndex?: number) => void;
+  onMoveComponent: (draggedId: string, targetId: string | null, parentId: string | null, position: 'top' | 'bottom', columnIndex?: number) => void;
 }
 
 export function ComponentWrapper({
@@ -51,18 +52,39 @@ export function ComponentWrapper({
     e.dataTransfer.setData('text/plain', data);
   };
 
+  const getParentInfo = (element: HTMLElement | null): {parentId: string | null, columnIndex: number | undefined} => {
+    if (!element) return { parentId: null, columnIndex: undefined };
+    
+    const columnElement = element.closest('[data-column-index]');
+    if (columnElement) {
+        const columnIndex = parseInt(columnElement.getAttribute('data-column-index')!, 10);
+        const parentId = columnElement.getAttribute('data-parent-id');
+        return { parentId, columnIndex };
+    }
+
+    const sectionElement = element.closest('[data-component-type="Section"]');
+    if (sectionElement) {
+        const parentId = sectionElement.getAttribute('data-component-id');
+        return { parentId, columnIndex: undefined };
+    }
+    
+    return { parentId: null, columnIndex: undefined };
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDraggedOver(true);
-
-    if (type === 'Section') {
-      setDropPosition(null); // No top/bottom indicator for sections
-    } else {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const midpoint = rect.top + rect.height / 2;
-      setDropPosition(e.clientY < midpoint ? 'top' : 'bottom');
+    
+    const isContainer = type === 'Section' || type === 'Columns';
+    if (isContainer) {
+        setDropPosition(null);
+        return;
     }
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+    setDropPosition(e.clientY < midpoint ? 'top' : 'bottom');
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
@@ -79,17 +101,19 @@ export function ComponentWrapper({
 
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-      const parentId = type === 'Section' ? id : null;
+      const { parentId, columnIndex } = getParentInfo(e.currentTarget as HTMLElement);
+      
+      const isContainer = type === 'Section' || type === 'Columns';
+      
+      let targetId = isContainer ? null : id;
+      let effectiveParentId = isContainer ? id : parentId;
+      let effectiveColumnIndex = columnIndex;
 
       if (data.type === 'new-component') {
-        const targetIdForNew = type === 'Section' ? null : id;
-        const positionForNew = dropPosition || 'top';
-        onAddComponent(data.componentType, parentId, targetIdForNew, positionForNew);
+        onAddComponent(data.componentType, effectiveParentId, targetId, dropPosition || 'bottom', effectiveColumnIndex);
       } else if (data.type === 'move-component') {
         const draggedId = data.componentId;
-        const targetIdForMove = id;
-        const positionForMove = dropPosition || 'top';
-        onMoveComponent(draggedId, targetIdForMove, parentId, positionForMove);
+        onMoveComponent(draggedId, targetId, effectiveParentId, dropPosition || 'bottom', effectiveColumnIndex);
       }
     } catch (err) {
         console.error("Invalid drop data", err);
@@ -108,12 +132,12 @@ export function ComponentWrapper({
         'relative p-1 my-1 transition-all duration-200 group',
         { 'ring-2 ring-primary ring-offset-2 rounded-md': isSelected },
         { 'hover:ring-2 hover:ring-primary/50 rounded-md': !isSelected },
-        { 'bg-primary/10': isDraggedOver && type === 'Section' }
+        { 'bg-primary/10': isDraggedOver && (type === 'Section' || type === 'Columns') }
       )}
       data-component-id={id}
       data-component-type={type}
     >
-      {isDraggedOver && type !== 'Section' && (
+      {isDraggedOver && type !== 'Section' && type !== 'Columns' && (
          <div className={cn(
             'absolute left-0 right-0 h-1 bg-primary z-20 pointer-events-none',
             dropPosition === 'top' ? '-top-1' : '-bottom-1'

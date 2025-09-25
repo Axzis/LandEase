@@ -1,3 +1,4 @@
+
 import { PageComponent } from '@/lib/types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { HeadingInspector } from './inspector-panels/heading-inspector';
@@ -8,6 +9,7 @@ import { SectionInspector } from './inspector-panels/section-inspector';
 import { PageInspector } from './inspector-panels/page-inspector';
 import { NavbarInspector } from './inspector-panels/navbar-inspector';
 import { FooterInspector } from './inspector-panels/footer-inspector';
+import { ColumnsInspector } from './inspector-panels/columns-inspector';
 
 interface InspectorPanelProps {
   selectedComponent: PageComponent | null;
@@ -25,6 +27,7 @@ const inspectorMap = {
   Section: SectionInspector,
   Navbar: NavbarInspector,
   Footer: FooterInspector,
+  Columns: ColumnsInspector,
 };
 
 export function InspectorPanel({ selectedComponent, onUpdateComponent, pageBackgroundColor, onUpdatePageBackgroundColor }: InspectorPanelProps) {

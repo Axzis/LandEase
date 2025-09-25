@@ -1,4 +1,4 @@
-export type ComponentType = 'Section' | 'Heading' | 'Text' | 'Button' | 'Image' | 'Navbar' | 'Footer';
+export type ComponentType = 'Section' | 'Heading' | 'Text' | 'Button' | 'Image' | 'Navbar' | 'Footer' | 'Columns';
 
 export interface BaseComponent {
   id: string;
@@ -19,6 +19,15 @@ export interface SectionComponent extends BaseComponent {
     gap: string;
   };
   children: PageComponent[];
+}
+
+export interface ColumnsComponent extends BaseComponent {
+    type: 'Columns';
+    props: {
+        numberOfColumns: number;
+        gap: string;
+    };
+    children: PageComponent[][]; // Array of arrays, one for each column
 }
 
 export interface NavbarComponent extends BaseComponent {
@@ -81,6 +90,6 @@ export interface ImageComponent extends BaseComponent {
   };
 }
 
-export type PageComponent = SectionComponent | HeadingComponent | TextComponent | ButtonComponent | ImageComponent | NavbarComponent | FooterComponent;
+export type PageComponent = SectionComponent | HeadingComponent | TextComponent | ButtonComponent | ImageComponent | NavbarComponent | FooterComponent | ColumnsComponent;
 
 export type PageContent = PageComponent[];

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -53,6 +54,8 @@ const createNewComponent = (type: ComponentType): PageComponent => {
   switch (type) {
     case 'Section':
       return { id, type: 'Section', props: { backgroundColor: 'transparent', padding: '16px', display: 'block', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', gap: '16px' }, children: [] };
+    case 'Columns':
+        return { id, type: 'Columns', props: { numberOfColumns: 2, gap: '16px' }, children: [[], []] };
     case 'Heading':
       return { id, type: 'Heading', props: { text: 'New Heading', level: 'h2', align: 'left' } };
     case 'Text':
@@ -117,26 +120,67 @@ export function EditorClient({ pageData }: EditorClientProps) {
         const component = components[i];
         if (component.id === id) return { component, parent: components, index: i };
         if (component.children) {
-            const found = findComponent(component.children, id);
-            if (found.component) return found;
+            const foundInChild = findComponentInChild(component, id);
+            if (foundInChild.component) return foundInChild;
         }
     }
     return { component: null, parent: null, index: -1 };
   };
+
+  const findComponentInChild = (parent: PageComponent, id: string): { component: PageComponent | null, parent: PageComponent[] | null, index: number } => {
+    if (parent.type === 'Columns' && Array.isArray(parent.children)) {
+        for (let colIndex = 0; colIndex < parent.children.length; colIndex++) {
+            const column = parent.children[colIndex];
+            for (let itemIndex = 0; itemIndex < column.length; itemIndex++) {
+                if (column[itemIndex].id === id) {
+                    return { component: column[itemIndex], parent: column, index: itemIndex };
+                }
+                if(column[itemIndex].children){
+                    const found = findComponentInChild(column[itemIndex], id);
+                    if(found.component) return found;
+                }
+            }
+        }
+    } else if (parent.type === 'Section' && Array.isArray(parent.children)) {
+        for (let i = 0; i < parent.children.length; i++) {
+            const component = parent.children[i];
+            if (component.id === id) return { component, parent: parent.children, index: i };
+            if (component.children) {
+                const found = findComponentInChild(component, id);
+                if (found.component) return found;
+            }
+        }
+    }
+    return { component: null, parent: null, index: -1 };
+}
+
 
   const selectedComponent = selectedComponentId ? findComponent(content, selectedComponentId).component : null;
 
   const updateComponentProps = (id: string, newProps: any) => {
     const newContent = JSON.parse(JSON.stringify(content));
     
-    const updateRecursively = (components: PageComponent[]) => {
+    const updateRecursively = (components: PageComponent[]): boolean => {
       for (let i = 0; i < components.length; i++) {
-        if (components[i].id === id) {
+        let component = components[i];
+        if (component.id === id) {
+          if (component.type === 'Columns' && newProps.numberOfColumns) {
+              const currentChildren = component.children || [];
+              const newChildrenCount = newProps.numberOfColumns;
+              const newChildren = Array.from({ length: newChildrenCount }, (_, i) => currentChildren[i] || []);
+              component.children = newChildren;
+          }
           components[i].props = { ...components[i].props, ...newProps };
           return true;
         }
-        if (components[i].children) {
-          if (updateRecursively(components[i].children as PageComponent[])) return true;
+        if (component.children) {
+          if (component.type === 'Columns') {
+            for (const col of component.children) {
+              if (updateRecursively(col)) return true;
+            }
+          } else {
+            if (updateRecursively(component.children as PageComponent[])) return true;
+          }
         }
       }
       return false;
@@ -151,11 +195,15 @@ export function EditorClient({ pageData }: EditorClientProps) {
     if (selectedComponentId === id) {
       setSelectedComponentId(null);
     }
-    const deleteRecursively = (components: PageComponent[]): PageComponent[] => {
-        return components.filter(component => {
-            if (component.id === id) return false;
-            if (component.children) {
-                component.children = deleteRecursively(component.children);
+    const deleteRecursively = (items: PageComponent[]): PageComponent[] => {
+        return items.filter(item => {
+            if (item.id === id) return false;
+            if (item.children) {
+                if (item.type === 'Columns') {
+                    item.children = item.children.map(col => deleteRecursively(col));
+                } else {
+                    item.children = deleteRecursively(item.children as PageComponent[]);
+                }
             }
             return true;
         });
@@ -164,7 +212,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
     setIsDirty(true);
   };
 
-  const handleAddComponent = (type: ComponentType, parentId: string | null, targetId: string | null = null, position: 'top' | 'bottom' = 'top') => {
+  const handleAddComponent = (type: ComponentType, parentId: string | null, targetId: string | null = null, position: 'top' | 'bottom' = 'top', columnIndex?: number) => {
     const newComponent = createNewComponent(type);
     
     const addRecursively = (items: PageComponent[]): PageComponent[] => {
@@ -183,23 +231,42 @@ export function EditorClient({ pageData }: EditorClientProps) {
         return [...items, newComponent]; // Fallback to adding at the end
       }
 
-      // Add to a nested level (i.e., inside a Section)
       return items.map(item => {
-        if (item.id === parentId && item.children) {
-          const newChildren = [...item.children];
-          if (targetId === null) { // Add to end of section
-            newChildren.push(newComponent);
-          } else { // Add before or after specific component in section
-            const targetIndex = newChildren.findIndex(child => child.id === targetId);
-            if (targetIndex !== -1) {
-                newChildren.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, newComponent);
-            } else {
-                newChildren.push(newComponent); // Fallback to adding at the end
+        if (item.id === parentId) {
+            if (item.type === 'Columns' && item.children && columnIndex !== undefined) {
+                const newChildren = [...item.children];
+                const targetColumn = newChildren[columnIndex] || [];
+                const targetIndex = targetColumn.findIndex(child => child.id === targetId);
+                
+                if (targetId === null) { // dropped on column bg
+                    targetColumn.push(newComponent);
+                } else if (targetIndex !== -1) {
+                    targetColumn.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, newComponent);
+                } else {
+                    targetColumn.push(newComponent); // fallback
+                }
+                newChildren[columnIndex] = targetColumn;
+                return { ...item, children: newChildren };
+            } else if (item.type === 'Section' && item.children) {
+                const newChildren = [...item.children];
+                if (targetId === null) {
+                    newChildren.push(newComponent);
+                } else {
+                    const targetIndex = newChildren.findIndex(child => child.id === targetId);
+                    if (targetIndex !== -1) {
+                        newChildren.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, newComponent);
+                    } else {
+                        newChildren.push(newComponent);
+                    }
+                }
+                return { ...item, children: newChildren };
             }
-          }
-          return { ...item, children: newChildren };
         } else if (item.children) {
-          return { ...item, children: addRecursively(item.children) };
+            if (item.type === 'Columns') {
+                 const newChildren = item.children.map(col => addRecursively(col));
+                 return { ...item, children: newChildren };
+            }
+            return { ...item, children: addRecursively(item.children as PageComponent[]) };
         }
         return item;
       });
@@ -210,53 +277,86 @@ export function EditorClient({ pageData }: EditorClientProps) {
     setIsDirty(true);
   };
 
-  const handleMoveComponent = (draggedId: string, targetId: string, parentId: string | null, position: 'top' | 'bottom') => {
+  const handleMoveComponent = (draggedId: string, targetId: string | null, parentId: string | null, position: 'top' | 'bottom', columnIndex?: number) => {
     if (draggedId === targetId) return;
 
     let componentToMove: PageComponent | null = null;
   
-    // Function to recursively find and remove a component
-    const removeComponent = (items: PageComponent[], id: string): PageComponent[] => {
+    const removeComponent = (items: PageComponent[]): PageComponent[] => {
       return items.filter(item => {
-        if (item.id === id) {
+        if (item.id === draggedId) {
           componentToMove = item;
-          return false; // Exclude the item
+          return false;
         }
         if (item.children) {
-          item.children = removeComponent(item.children, id);
+           if (item.type === 'Columns') {
+               item.children = item.children.map(col => removeComponent(col));
+           } else {
+               item.children = removeComponent(item.children as PageComponent[]);
+           }
         }
         return true;
       });
     };
 
-    const contentAfterRemoval = removeComponent(JSON.parse(JSON.stringify(content)), draggedId);
+    const contentAfterRemoval = removeComponent(JSON.parse(JSON.stringify(content)));
     if (!componentToMove) return;
 
-    const insertComponent = (items: PageComponent[]) => {
-      if (parentId) { // Dropped inside a section
+    const insertComponent = (items: PageComponent[]): PageComponent[] => {
+      if (parentId) {
         return items.map(item => {
-          if (item.id === parentId && item.children) {
-            const newChildren = [...item.children];
-            const targetIndex = newChildren.findIndex(c => c.id === targetId);
-            if (targetIndex !== -1) {
-              newChildren.splice(targetIndex + (position === 'bottom' ? 1: 0), 0, componentToMove!);
-            } else {
-              newChildren.push(componentToMove!); // Append if target not found (e.g., dropped on section itself)
+          if (item.id === parentId) {
+            if (item.type === 'Columns' && item.children && columnIndex !== undefined) {
+                const newChildren = [...item.children];
+                const targetColumn = newChildren[columnIndex] || [];
+                if (targetId) {
+                    const targetIndex = targetColumn.findIndex(c => c.id === targetId);
+                    if (targetIndex !== -1) {
+                        targetColumn.splice(targetIndex + (position === 'bottom' ? 1: 0), 0, componentToMove!);
+                    } else {
+                        targetColumn.push(componentToMove!);
+                    }
+                } else { // dropped on column bg
+                    targetColumn.push(componentToMove!);
+                }
+                newChildren[columnIndex] = targetColumn;
+                return { ...item, children: newChildren };
+            } else if (item.type === 'Section' && item.children) {
+                const newChildren = [...item.children];
+                if (targetId) {
+                    const targetIndex = newChildren.findIndex(c => c.id === targetId);
+                    if (targetIndex !== -1) {
+                        newChildren.splice(targetIndex + (position === 'bottom' ? 1: 0), 0, componentToMove!);
+                    } else {
+                        newChildren.push(componentToMove!);
+                    }
+                } else {
+                    newChildren.push(componentToMove!);
+                }
+                return { ...item, children: newChildren };
             }
-            return { ...item, children: newChildren };
           } else if (item.children) {
-            return { ...item, children: insertComponent(item.children) };
+            if (item.type === 'Columns') {
+                const newChildren = item.children.map(col => insertComponent(col));
+                return { ...item, children: newChildren };
+            }
+            return { ...item, children: insertComponent(item.children as PageComponent[]) };
           }
           return item;
         });
       } else { // Dropped on root
           const newItems = [...items];
-          const targetIndex = newItems.findIndex(c => c.id === targetId);
-          if (targetIndex !== -1) {
-            newItems.splice(targetIndex + (position === 'bottom' ? 1: 0), 0, componentToMove!);
-            return newItems;
+          if (targetId) {
+            const targetIndex = newItems.findIndex(c => c.id === targetId);
+            if (targetIndex !== -1) {
+                newItems.splice(targetIndex + (position === 'bottom' ? 1: 0), 0, componentToMove!);
+            } else {
+                newItems.push(componentToMove!); // Fallback
+            }
+          } else {
+            newItems.push(componentToMove!); // Dropped on canvas bg
           }
-          return newItems; // Should not happen if targetId is always valid
+          return newItems;
       }
     };
     

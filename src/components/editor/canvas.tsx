@@ -1,3 +1,4 @@
+
 import { EditorCanvas } from './editor-canvas';
 import { PageContent, PageComponent, ComponentType } from '@/lib/types';
 
@@ -6,8 +7,8 @@ interface CanvasProps {
   onSelectComponent: (id: string | null) => void;
   selectedComponentId: string | null;
   onDeleteComponent: (id: string) => void;
-  onAddComponent: (type: ComponentType, parentId: string | null, targetId: string | null) => void;
-  onMoveComponent: (draggedId: string, targetId: string, parentId: string | null, position: 'top' | 'bottom') => void;
+  onAddComponent: (type: ComponentType, parentId: string | null, targetId: string | null, position: 'top' | 'bottom', columnIndex?: number) => void;
+  onMoveComponent: (draggedId: string, targetId: string | null, parentId: string | null, position: 'top' | 'bottom', columnIndex?: number) => void;
   pageBackgroundColor: string;
 }
 
@@ -28,7 +29,9 @@ export function Canvas({ content, onSelectComponent, selectedComponentId, onDele
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
       if (data.type === 'new-component') {
-        onAddComponent(data.componentType, null, null);
+        onAddComponent(data.componentType, null, null, 'bottom');
+      } else if (data.type === 'move-component') {
+        onMoveComponent(data.componentId, null, null, 'bottom');
       }
     } catch(err) {
       console.error("Invalid drop data on canvas:", err);
