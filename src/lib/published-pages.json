@@ -1,3 +1,62 @@
 {
-
+  "NmfEToBb5qeJroippJ8P": {
+    "pageName": "Untitled Page",
+    "content": [
+      {
+        "props": {
+          "backgroundColor": "#FFFFFF",
+          "padding": "64px"
+        },
+        "children": [
+          {
+            "id": "head-1",
+            "type": "Heading",
+            "props": {
+              "align": "center",
+              "level": "h1",
+              "text": "Welcome to Your New Page"
+            }
+          },
+          {
+            "type": "Text",
+            "id": "text-1",
+            "props": {
+              "textDecoration": "none",
+              "fontWeight": "normal",
+              "align": "center",
+              "text": "This is your starting point. Click on any element to edit it or drag new components from the left sidebar!",
+              "fontFamily": "Inter",
+              "fontStyle": "normal"
+            }
+          },
+          {
+            "type": "Button",
+            "props": {
+              "align": "center",
+              "href": "#",
+              "text": "Get Started"
+            },
+            "id": "btn-1"
+          },
+          {
+            "children": [],
+            "id": "comp_1758786915454_mknjy7w",
+            "props": {
+              "alignItems": "stretch",
+              "padding": "16px",
+              "flexDirection": "column",
+              "display": "block",
+              "gap": "16px",
+              "backgroundColor": "transparent",
+              "justifyContent": "flex-start"
+            },
+            "type": "Section"
+          }
+        ],
+        "id": "hero-1",
+        "type": "Section"
+      }
+    ],
+    "pageBackgroundColor": "#FFFFFF"
+  }
 }
