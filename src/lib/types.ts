@@ -1,13 +1,14 @@
 
 
 
+
 export type ComponentType = 'Section' | 'Heading' | 'Text' | 'Button' | 'Image' | 'Navbar' | 'Footer' | 'Columns' | 'Video' | 'Form';
 
 export interface BaseComponent {
   id: string;
   type: ComponentType;
   props: Record<string, any>;
-  children?: PageComponent[] | PageComponent[][];
+  children?: PageComponent[];
 }
 
 export interface SectionComponent extends BaseComponent {
@@ -24,13 +25,20 @@ export interface SectionComponent extends BaseComponent {
   children: PageComponent[];
 }
 
+export interface Column {
+    id: string;
+    children: PageComponent[];
+}
+
 export interface ColumnsComponent extends BaseComponent {
     type: 'Columns';
     props: {
         numberOfColumns: number;
         gap: string;
     };
-    children: PageComponent[][]; // Array of arrays, one for each column
+    // children is not used, instead 'columns' property is used.
+    children?: undefined; 
+    columns: Column[]; 
 }
 
 export interface NavbarComponent extends BaseComponent {

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useTransition } from 'react';
@@ -6,7 +7,7 @@ import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
-import { PageContent, PageComponent, ComponentType } from '@/lib/types';
+import { PageContent, PageComponent, ComponentType, Column } from '@/lib/types';
 import { ComponentPalette } from './component-palette';
 import { Canvas } from './canvas';
 import { InspectorPanel } from './inspector-panel';
@@ -46,7 +47,10 @@ const createNewComponent = (type: ComponentType): PageComponent => {
     case 'Section':
       return { id, type: 'Section', props: { backgroundColor: 'transparent', padding: '16px', display: 'block', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', gap: '16px' }, children: [] };
     case 'Columns':
-        return { id, type: 'Columns', props: { numberOfColumns: 2, gap: '16px' }, children: [[], []] };
+        const createColumns = (count: number): Column[] => {
+            return Array.from({ length: count }, () => ({ id: generateId(), children: [] }));
+        }
+        return { id, type: 'Columns', props: { numberOfColumns: 2, gap: '16px' }, columns: createColumns(2) };
     case 'Heading':
       return { id, type: 'Heading', props: { text: 'New Heading', level: 'h2', align: 'left', padding: '0px' } };
     case 'Text':
@@ -143,25 +147,22 @@ export function EditorClient({ pageId }: EditorClientProps) {
     setSelectedComponentId(id);
   };
   
-  const findComponent = (components: PageContent, id: string): { component: PageComponent | null, parent: PageComponent[] | PageComponent[][] | null, index: number, parentComponent?: PageComponent } => {
+  const findComponent = (components: PageContent, id: string): { component: PageComponent | null, parent: PageContent | Column[] | null, index: number, parentComponent?: PageComponent } => {
     for (let i = 0; i < components.length; i++) {
         const component = components[i];
         if (component.id === id) return { component, parent: components, index: i };
         
-        if (component.children) {
-            if (Array.isArray(component.children[0])) { // Columns
-                for(let colIndex = 0; colIndex < component.children.length; colIndex++) {
-                    const column = component.children[colIndex] as PageComponent[];
-                    const found = findComponent(column, id);
-                    if (found.component) {
-                        return { ...found, parentComponent: component };
-                    }
-                }
-            } else { // Section
-                const found = findComponent(component.children as PageComponent[], id);
+        if (component.type === 'Columns') {
+            for (const column of component.columns) {
+                const found = findComponent(column.children, id);
                 if (found.component) {
                     return { ...found, parentComponent: component };
                 }
+            }
+        } else if (component.children) {
+            const found = findComponent(component.children, id);
+            if (found.component) {
+                return { ...found, parentComponent: component };
             }
         }
     }
@@ -178,22 +179,21 @@ export function EditorClient({ pageId }: EditorClientProps) {
         let component = components[i];
         if (component.id === id) {
           if (component.type === 'Columns' && newProps.numberOfColumns) {
-              const currentChildren = component.children || [];
-              const newChildrenCount = newProps.numberOfColumns;
-              const newChildren = Array.from({ length: newChildrenCount }, (_, i) => currentChildren[i] || []);
-              component.children = newChildren;
+              const currentColumns = component.columns || [];
+              const newColumnCount = newProps.numberOfColumns;
+              const newColumns = Array.from({ length: newColumnCount }, (_, i) => currentColumns[i] || { id: generateId(), children: [] });
+              component.columns = newColumns;
           }
           components[i].props = { ...components[i].props, ...newProps };
           return true;
         }
-        if (component.children) {
-          if (component.type === 'Columns') {
-            for (const col of component.children) {
-              if (updateRecursively(col as PageComponent[])) return true;
-            }
-          } else {
-            if (updateRecursively(component.children as PageComponent[])) return true;
+
+        if (component.type === 'Columns') {
+          for (const col of component.columns) {
+            if (updateRecursively(col.children)) return true;
           }
+        } else if (component.children) {
+          if (updateRecursively(component.children)) return true;
         }
       }
       return false;
@@ -211,12 +211,10 @@ export function EditorClient({ pageId }: EditorClientProps) {
     const deleteRecursively = (items: PageComponent[]): PageComponent[] => {
         return items.filter(item => {
             if (item.id === id) return false;
-            if (item.children) {
-                if (item.type === 'Columns') {
-                    item.children = item.children.map(col => deleteRecursively(col as PageComponent[]));
-                } else {
-                    item.children = deleteRecursively(item.children as PageComponent[]);
-                }
+            if (item.type === 'Columns') {
+                item.columns = item.columns.map(col => ({...col, children: deleteRecursively(col.children)}));
+            } else if (item.children) {
+                item.children = deleteRecursively(item.children);
             }
             return true;
         });
@@ -246,22 +244,22 @@ export function EditorClient({ pageId }: EditorClientProps) {
 
       return items.map(item => {
         if (item.id === parentId) {
-            if (item.type === 'Columns' && item.children && columnIndex !== undefined) {
-                const newChildren = [...item.children] as PageComponent[][];
-                const targetColumn = newChildren[columnIndex] || [];
-                const targetIndex = targetColumn.findIndex(child => child.id === targetId);
-                
-                if (targetId === null) { // dropped on column bg
-                    targetColumn.push(newComponent);
-                } else if (targetIndex !== -1) {
-                    targetColumn.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, newComponent);
-                } else {
-                    targetColumn.push(newComponent); // fallback
+            if (item.type === 'Columns' && columnIndex !== undefined) {
+                const newColumns = [...item.columns];
+                const targetColumn = newColumns[columnIndex];
+                if (targetColumn) {
+                    const targetIndex = targetColumn.children.findIndex(child => child.id === targetId);
+                    if (targetId === null) { // dropped on column bg
+                        targetColumn.children.push(newComponent);
+                    } else if (targetIndex !== -1) {
+                        targetColumn.children.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, newComponent);
+                    } else {
+                        targetColumn.children.push(newComponent); // fallback
+                    }
                 }
-                newChildren[columnIndex] = targetColumn;
-                return { ...item, children: newChildren };
-            } else if (item.type === 'Section' && item.children) {
-                const newChildren = [...(item.children as PageComponent[])];
+                return { ...item, columns: newColumns };
+            } else if (item.children) {
+                const newChildren = [...item.children];
                 if (targetId === null) {
                     newChildren.push(newComponent);
                 } else {
@@ -274,12 +272,11 @@ export function EditorClient({ pageId }: EditorClientProps) {
                 }
                 return { ...item, children: newChildren };
             }
+        } else if (item.type === 'Columns') {
+            const newColumns = item.columns.map(col => ({...col, children: addRecursively(col.children)}));
+            return {...item, columns: newColumns};
         } else if (item.children) {
-            if (item.type === 'Columns') {
-                 const newChildren = (item.children as PageComponent[][]).map(col => addRecursively(col));
-                 return { ...item, children: newChildren };
-            }
-            return { ...item, children: addRecursively(item.children as PageComponent[]) };
+            return { ...item, children: addRecursively(item.children) };
         }
         return item;
       });
@@ -301,12 +298,10 @@ export function EditorClient({ pageId }: EditorClientProps) {
           componentToMove = item;
           return false;
         }
-        if (item.children) {
-           if (item.type === 'Columns') {
-               item.children = (item.children as PageComponent[][]).map(col => removeComponent(col));
-           } else {
-               item.children = removeComponent(item.children as PageComponent[]);
-           }
+        if (item.type === 'Columns') {
+           item.columns = item.columns.map(col => ({...col, children: removeComponent(col.children)}));
+        } else if (item.children) {
+           item.children = removeComponent(item.children);
         }
         return true;
       });
@@ -319,23 +314,24 @@ export function EditorClient({ pageId }: EditorClientProps) {
       if (parentId) {
         return items.map(item => {
           if (item.id === parentId) {
-            if (item.type === 'Columns' && item.children && columnIndex !== undefined) {
-                const newChildren = [...(item.children as PageComponent[][])];
-                const targetColumn = newChildren[columnIndex] || [];
-                if (targetId) {
-                    const targetIndex = targetColumn.findIndex(c => c.id === targetId);
-                    if (targetIndex !== -1) {
-                        targetColumn.splice(targetIndex + (position === 'bottom' ? 1: 0), 0, componentToMove!);
-                    } else {
-                        targetColumn.push(componentToMove!);
+            if (item.type === 'Columns' && columnIndex !== undefined) {
+                const newColumns = [...item.columns];
+                const targetColumn = newColumns[columnIndex];
+                if (targetColumn) {
+                    if (targetId) {
+                        const targetIndex = targetColumn.children.findIndex(c => c.id === targetId);
+                        if (targetIndex !== -1) {
+                            targetColumn.children.splice(targetIndex + (position === 'bottom' ? 1: 0), 0, componentToMove!);
+                        } else {
+                            targetColumn.children.push(componentToMove!);
+                        }
+                    } else { // dropped on column bg
+                        targetColumn.children.push(componentToMove!);
                     }
-                } else { // dropped on column bg
-                    targetColumn.push(componentToMove!);
                 }
-                newChildren[columnIndex] = targetColumn;
-                return { ...item, children: newChildren };
-            } else if (item.type === 'Section' && item.children) {
-                const newChildren = [...(item.children as PageComponent[])];
+                return { ...item, columns: newColumns };
+            } else if (item.children) {
+                const newChildren = [...item.children];
                 if (targetId) {
                     const targetIndex = newChildren.findIndex(c => c.id === targetId);
                     if (targetIndex !== -1) {
@@ -348,12 +344,11 @@ export function EditorClient({ pageId }: EditorClientProps) {
                 }
                 return { ...item, children: newChildren };
             }
+          } else if (item.type === 'Columns') {
+            const newColumns = item.columns.map(col => ({...col, children: insertComponent(col.children)}));
+            return { ...item, columns: newColumns };
           } else if (item.children) {
-            if (item.type === 'Columns') {
-                const newChildren = (item.children as PageComponent[][]).map(col => insertComponent(col));
-                return { ...item, children: newChildren };
-            }
-            return { ...item, children: insertComponent(item.children as PageComponent[]) };
+            return { ...item, children: insertComponent(item.children) };
           }
           return item;
         });

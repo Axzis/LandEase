@@ -1,6 +1,7 @@
+
 'use client';
 
-import { PageContent, PageComponent, ComponentType, FormField } from '@/lib/types';
+import { PageContent, PageComponent, ComponentType, FormField, ColumnsComponent } from '@/lib/types';
 import { ComponentWrapper } from './renderable/component-wrapper';
 import { cn } from '@/lib/utils';
 import React from 'react';
@@ -211,11 +212,11 @@ function RenderComponent({
 
   let childrenToRender;
 
-  if (component.type === 'Columns' && Array.isArray(component.children)) {
-    childrenToRender = component.children.map((column, colIndex) => (
+  if (component.type === 'Columns') {
+    childrenToRender = component.columns.map((column, colIndex) => (
         <ColumnDropZone 
-            key={colIndex}
-            components={column}
+            key={column.id}
+            components={column.children}
             columnIndex={colIndex}
             parentId={component.id}
             parentPath={currentPath}
@@ -229,7 +230,7 @@ function RenderComponent({
             pageName={pageName}
         />
     ));
-  } else if (component.type === 'Section' && Array.isArray(component.children)) {
+  } else if (component.children) {
       childrenToRender = (component.children as PageComponent[]).map(child => (
         <RenderComponent 
           key={child.id} 
