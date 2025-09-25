@@ -55,17 +55,26 @@ export function ComponentWrapper({
   const getParentInfo = (element: HTMLElement | null): {parentId: string | null, columnIndex: number | undefined} => {
     if (!element) return { parentId: null, columnIndex: undefined };
     
-    const columnElement = element.closest('[data-column-index]');
-    if (columnElement) {
-        const columnIndex = parseInt(columnElement.getAttribute('data-column-index')!, 10);
-        const parentId = columnElement.getAttribute('data-parent-id');
-        return { parentId, columnIndex };
-    }
-
-    const sectionElement = element.closest('[data-component-type="Section"]');
-    if (sectionElement) {
-        const parentId = sectionElement.getAttribute('data-component-id');
-        return { parentId, columnIndex: undefined };
+    // Traverses up to find the closest parent that is a column or a section.
+    // If we are directly under the root, it will return null parentId.
+    let currentElement: HTMLElement | null = element;
+    while(currentElement && currentElement.parentElement) {
+        const parentElement = currentElement.parentElement;
+        const columnElement = parentElement.closest('[data-column-index]');
+        if (columnElement) {
+            const columnIndex = parseInt(columnElement.getAttribute('data-column-index')!, 10);
+            const parentId = columnElement.getAttribute('data-parent-id');
+            return { parentId, columnIndex };
+        }
+        
+        const sectionElement = parentElement.closest('[data-component-type="Section"]');
+        if (sectionElement) {
+            const parentId = sectionElement.getAttribute('data-component-id');
+            if (parentId) return { parentId, columnIndex: undefined };
+        }
+        currentElement = parentElement;
+        // Stop if we hit the canvas root
+        if(parentElement.classList.contains('pb-[50vh]')) break;
     }
     
     return { parentId: null, columnIndex: undefined };
@@ -74,29 +83,34 @@ export function ComponentWrapper({
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDraggedOver(true);
     
     const rect = e.currentTarget.getBoundingClientRect();
-    const midpoint = rect.top + rect.height / 2;
-    const position = e.clientY < midpoint ? 'top' : 'bottom';
-    setDropPosition(position);
-
     const isContainer = type === 'Section' || type === 'Columns';
-    if (isContainer) {
-      // If dragging over a container, decide whether to drop inside or outside based on proximity to edge.
+    const { parentId } = getParentInfo(e.currentTarget as HTMLElement);
+    
+    // Only show top/bottom indicators for root level components
+    if (parentId === null) {
+      const midpoint = rect.top + rect.height / 2;
+      const position = e.clientY < midpoint ? 'top' : 'bottom';
+      setDropPosition(position);
+    } else if (isContainer) {
+      // Logic for dropping inside a container
       const edgeThreshold = 20; // 20px from top or bottom edge
       if (e.clientY < rect.top + edgeThreshold) {
         setDropPosition('top');
       } else if (e.clientY > rect.bottom - edgeThreshold) {
         setDropPosition('bottom');
       } else {
-        // Drop is inside the container, not above or below it.
-        // We'll reset the drop position and show a different visual indicator.
-        setDropPosition(null);
+        setDropPosition(null); // Indicates drop inside
       }
     } else {
-      setDropPosition(position);
+        // For non-container components inside other components
+        const midpoint = rect.top + rect.height / 2;
+        const position = e.clientY < midpoint ? 'top' : 'bottom';
+        setDropPosition(position);
     }
+    
+    setIsDraggedOver(true);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
@@ -109,30 +123,37 @@ export function ComponentWrapper({
     e.preventDefault();
     e.stopPropagation();
     setIsDraggedOver(false);
-    setDropPosition(null);
-
+    
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-      const { parentId, columnIndex } = getParentInfo(e.currentTarget as HTMLElement);
-      
+      const { parentId: directParentId, columnIndex } = getParentInfo(e.currentTarget as HTMLElement);
+
       const isContainer = type === 'Section' || type === 'Columns';
-      
-      // If dropPosition is null, it means we're dropping *inside* a container
       const dropInsideContainer = isContainer && dropPosition === null;
 
-      let targetId = dropInsideContainer ? null : id;
-      let effectiveParentId = dropInsideContainer ? id : parentId;
-      let effectiveColumnIndex = columnIndex;
-      let effectiveDropPosition = dropPosition || 'bottom';
+      let targetIdToUse = id;
+      let parentIdToUse = directParentId;
+      let positionToUse = dropPosition || 'bottom'; // Default to bottom if null
 
+      if (dropInsideContainer) {
+        // Dropping INSIDE a Section or a Column container
+        targetIdToUse = null; // No specific target inside, just append
+        parentIdToUse = id; // The container itself is the parent
+      }
+      
       if (data.type === 'new-component') {
-        onAddComponent(data.componentType, effectiveParentId, targetId, effectiveDropPosition, effectiveColumnIndex);
+        onAddComponent(data.componentType, parentIdToUse, targetIdToUse, positionToUse, columnIndex);
       } else if (data.type === 'move-component') {
         const draggedId = data.componentId;
-        onMoveComponent(draggedId, targetId, effectiveParentId, effectiveDropPosition, effectiveColumnIndex);
+        // Prevent dropping a component onto itself
+        if (draggedId === targetIdToUse) return;
+        onMoveComponent(draggedId, targetIdToUse, parentIdToUse, positionToUse, columnIndex);
       }
+
     } catch (err) {
         console.error("Invalid drop data", err);
+    } finally {
+        setDropPosition(null);
     }
   };
 
