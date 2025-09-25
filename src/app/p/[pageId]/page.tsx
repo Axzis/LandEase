@@ -1,57 +1,52 @@
-'use client';
-
-import { useState, useEffect } from 'react';
+import { notFound } from 'next/navigation';
+import { doc, getDoc } from 'firebase/firestore';
+import { initializeFirebaseServer } from '@/firebase/server-init';
 import { EditorCanvas } from '@/components/editor/editor-canvas';
-import { Loader2 } from 'lucide-react';
-import type { PageContent } from '@/lib/types';
-import { getPublishedPage } from '@/lib/published-pages';
+import type { PageComponent } from '@/lib/types';
+
+// Force dynamic rendering and prevent caching
+export const revalidate = 0;
 
 interface PageData {
-  content: PageContent;
+  content: PageComponent[];
   pageName: string;
   pageBackgroundColor?: string;
+  published: boolean;
 }
 
-export default function PublicPage({ params }: { params: { pageId: string } }) {
-  const { pageId } = params;
-  const [pageData, setPageData] = useState<PageData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+async function getPageData(pageId: string): Promise<PageData | null> {
+  // Initialize server-side admin access
+  const { firestore } = initializeFirebaseServer();
+  const pageRef = doc(firestore, 'pages', pageId);
+  
+  try {
+    const pageSnap = await getDoc(pageRef);
 
-  useEffect(() => {
-    setIsLoading(true);
-    // Ini sekarang membaca dari file statis, bukan dari Firestore.
-    const data = getPublishedPage(pageId);
-
-    if (data) {
-      setPageData(data);
-    } else {
-      setError('Halaman ini tidak ditemukan atau belum dipublikasikan.');
+    if (!pageSnap.exists()) {
+      return null;
     }
 
-    setIsLoading(false);
-  }, [pageId]);
+    const data = pageSnap.data() as PageData;
+    
+    // Enforce publishing rule at the application level as a safeguard
+    if (!data.published) {
+        return null;
+    }
 
-  if (isLoading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <div className="text-center">
-          <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Memuat halaman...</p>
-        </div>
-      </div>
-    );
+    return data;
+  } catch (error) {
+    console.error("Error fetching page data on server:", error);
+    // In case of any error (including permissions), treat as not found
+    return null;
   }
+}
 
-  if (error || !pageData) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <div className="p-4 text-center">
-          <h1 className="text-2xl font-bold">Halaman Tidak Tersedia</h1>
-          <p className="max-w-md text-muted-foreground">{error}</p>
-        </div>
-      </div>
-    );
+export default async function PublicPage({ params }: { params: { pageId: string } }) {
+  const pageData = await getPageData(params.pageId);
+
+  // If page doesn't exist or is not published, show a 404 page
+  if (!pageData) {
+    notFound();
   }
 
   return (
@@ -59,7 +54,7 @@ export default function PublicPage({ params }: { params: { pageId: string } }) {
       <EditorCanvas
         content={pageData.content}
         readOnly
-        pageId={pageId}
+        pageId={params.pageId}
         pageName={pageData.pageName}
       />
     </div>
