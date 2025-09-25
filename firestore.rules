@@ -2,99 +2,91 @@
  * @fileoverview Firestore Security Rules for LandEase Prototyping.
  *
  * Core Philosophy:
- * This ruleset employs a strict user-ownership model for user profiles and their associated form submissions.
- * All data is nested under /users/{userId}, ensuring that only the authenticated user can access their own data.
+ * This ruleset enforces a strict user-ownership model for user profiles and submissions. Users can only
+ * create, read, update, and delete their own data. Public listing of user profiles or submissions is disallowed.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile information, with userId matching the Firebase Auth UID.
- * - /users/{userId}/submissions/{submissionId}: Stores form submissions associated with a specific user.
+ * - /users/{userId}: Stores user profile information.  The `userId` path segment must match the user's Firebase Auth UID.
+ * - /users/{userId}/submissions/{submissionId}: Stores form submissions associated with a user.
  *
  * Key Security Decisions:
- * - User listing is explicitly disallowed.
- * - Users can only create their own profile document (self-creation).
- * - Submissions are strictly owned by the user and cannot be accessed by others.
+ * - Users can only access their own profile and submission data.
+ * - Listing all users is disallowed.
+ * - Listing submissions is only allowed for the owner.
  *
  * Denormalization for Authorization:
- * - The `userId` is embedded within both the `/users/{userId}` document (on creation) and the `/users/{userId}/submissions/{submissionId}` documents to ensure the path matches the document's owner. This prevents unauthorized data manipulation.
+ *  - The `submissionId` in `/users/{userId}/submissions/{submissionId}` is used for authorization and *must* match the `id` field in the submission document.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the request is made by an authenticated user.
-     * @returns {boolean} True if the user is signed in, false otherwise.
+     * @description Checks if the request is authenticated.
+     * @return {boolean} True if the request is authenticated, false otherwise.
      */
     function isSignedIn() {
       return request.auth != null;
     }
 
     /**
-     * @description Checks if the authenticated user's UID matches the provided userId.
-     * @param {string} userId - The user ID to compare against the authenticated user's UID.
-     * @returns {boolean} True if the user is the owner, false otherwise.
+     * @description Checks if the authenticated user ID matches the provided user ID.
+     * @param {string} userId The user ID to compare against.
+     * @return {boolean} True if the user IDs match, false otherwise.
      */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-     /**
-     * @description Checks if the authenticated user's UID matches the provided userId and that resource exists.
-     * @param {string} userId - The user ID to compare against the authenticated user's UID.
-     * @returns {boolean} True if the user is the owner and resource exists, false otherwise.
+    /**
+     * @description Checks if the authenticated user is the owner of an existing document.
+     * @param {string} userId The user ID to check against.
+     * @return {boolean} True if the user is the owner of the existing document.
      */
     function isExistingOwner(userId) {
       return isOwner(userId) && resource != null;
     }
 
-
     /**
-     * @description Rules for user profile documents.
+     * @description Enforces document ownership for the /users/{userId} collection.
      * @path /users/{userId}
-     * @allow (create) Signed-in user can create their own profile if the userId matches their UID.
-     * @allow (get, update, delete) Signed-in user can read, update, and delete their own profile.
-     * @deny (create) User cannot create a profile with a userId that doesn't match their UID.
-     * @deny (get, update, delete) User cannot read, update, or delete another user's profile.
-     * @principle Enforces document ownership for user profiles.
+     * @allow (create) - Authenticated user with UID 'user123' can create a document at /users/user123.
+     * @deny (create) - Authenticated user with UID 'user123' cannot create a document at /users/user456.
+     * @allow (get) - Authenticated user with UID 'user123' can get the document at /users/user123.
+     * @deny (get) - Authenticated user with UID 'user123' cannot get the document at /users/user456.
+     * @allow (update) - Authenticated user with UID 'user123' can update the document at /users/user123.
+     * @deny (update) - Authenticated user with UID 'user123' cannot update the document at /users/user456.
+     * @allow (delete) - Authenticated user with UID 'user123' can delete the document at /users/user123.
+     * @deny (delete) - Authenticated user with UID 'user123' cannot delete the document at /users/user456.
+     * @principle Enforces document ownership for writes and reads.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.id == request.auth.uid;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Rules for form submissions within a user's profile.
+     * @description Enforces document ownership for the /users/{userId}/submissions/{submissionId} collection.
      * @path /users/{userId}/submissions/{submissionId}
-     * @allow (create) Signed-in user can create a submission under their own profile.
-     * @allow (get, list, update, delete) Signed-in user can read, list, update, and delete their own submissions.
-     * @deny (create) User cannot create a submission under another user's profile.
-     * @deny (get, list, update, delete) User cannot read, list, update, or delete another user's submissions.
-     * @principle Enforces document ownership for form submissions.
+     * @allow (create) - Authenticated user with UID 'user123' can create a submission document at /users/user123/submissions/sub123.
+     * @deny (create) - Authenticated user with UID 'user123' cannot create a submission document at /users/user456/submissions/sub123.
+     * @allow (get) - Authenticated user with UID 'user123' can get the document at /users/user123/submissions/sub123.
+     * @deny (get) - Authenticated user with UID 'user123' cannot get the document at /users/user456/submissions/sub123.
+     * @allow (update) - Authenticated user with UID 'user123' can update the document at /users/user123/submissions/sub123.
+     * @deny (update) - Authenticated user with UID 'user123' cannot update the document at /users/user456/submissions/sub123.
+     * @allow (delete) - Authenticated user with UID 'user123' can delete the document at /users/user123/submissions/sub123.
+     * @deny (delete) - Authenticated user with UID 'user123' cannot delete the document at /users/user456/submissions/sub123.
+     * @principle Enforces document ownership for writes and reads.
      */
     match /users/{userId}/submissions/{submissionId} {
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.id == submissionId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
-    }
-
-    /**
-     * @description Rules for pages.
-     * @path /pages/{pageId}
-     * @allow (get) Allow public read access to pages.
-     * @deny (create, update, delete, list) Deny all write and list operations on pages.
-     * @principle Allow public read access to pages, but restrict all other operations.
-     */
-    match /pages/{pageId} {
-      allow get: if true;
-      allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
     }
   }
 }
