@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useMemo, type ReactNode } from 'react';
-import { AuthProvider, FirebaseProvider } from '@/firebase/provider';
+import { AuthProvider } from '@/firebase/auth/use-user';
+import { FirebaseProvider } from '@/firebase/provider';
 import { initializeFirebase } from '@/firebase';
 import { Loader2 } from 'lucide-react';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';

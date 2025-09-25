@@ -1,10 +1,9 @@
 'use client';
 
-import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
+import React, { DependencyList, createContext, useContext, ReactNode, useMemo } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore } from 'firebase/firestore';
-import { Auth, User } from 'firebase/auth';
-import { Loader2 } from 'lucide-react';
+import { Auth } from 'firebase/auth';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -32,7 +31,7 @@ export interface FirebaseServices {
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
 /**
- * FirebaseProvider manages and provides Firebase services and user authentication state.
+ * FirebaseProvider manages and provides Firebase services.
  */
 export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   children,
@@ -107,51 +106,4 @@ export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T | 
   (memoized as MemoFirebase<T>).__memo = true;
   
   return memoized;
-}
-
-// Separate context and provider for Auth state
-interface AuthContextType {
-  user: User | null;
-  loading: boolean;
-  error: Error | null;
-}
-
-export const AuthContext = createContext<AuthContextType>({
-  user: null,
-  loading: true,
-  error: null,
-});
-
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const auth = useAuth();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    setLoading(true);
-    const unsubscribe = auth.onAuthStateChanged(
-        (user) => {
-            setUser(user);
-            setLoading(false);
-        },
-        (error) => {
-            setError(error);
-            setLoading(false);
-        }
-    );
-    return () => unsubscribe();
-  }, [auth]);
-  
-  const value = { user, loading, error };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export const useUser = () => {
-    const context = useContext(AuthContext);
-    if (context === undefined) {
-        throw new Error('useUser must be used within an AuthProvider');
-    }
-    return context;
 }
