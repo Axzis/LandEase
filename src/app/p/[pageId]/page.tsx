@@ -4,8 +4,8 @@ import { initializeFirebaseServer } from "@/firebase/server-init";
 import { doc, getDoc } from "firebase/firestore";
 import { notFound } from "next/navigation";
 
-// Revalidate the page every 60 seconds
-export const revalidate = 60;
+// Force dynamic rendering and disable all caching to ensure fresh data and rules are used.
+export const revalidate = 0;
 
 export default async function PublicPage({ params }: { params: { pageId: string } }) {
     const { firestore } = initializeFirebaseServer();
@@ -27,29 +27,17 @@ export default async function PublicPage({ params }: { params: { pageId: string 
         
         const data = pageSnap.data();
 
-        // Security check: Only show published pages
+        // Security check: Only show published pages.
+        // If the page isn't published, treat it as not found.
         if (!data.published) {
-             return (
-                <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
-                    <div className="text-center">
-                        <h1 className="text-4xl font-bold">404</h1>
-                        <p className="text-lg text-muted-foreground">Page not found or is not public.</p>
-                    </div>
-                </div>
-            )
+            notFound();
         }
         pageData = data;
 
     } catch (error) {
-        console.error("Error fetching public page:", error);
-         return (
-            <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
-                <div className="text-center">
-                    <h1 className="text-4xl font-bold">Error</h1>
-                    <p className="text-lg text-muted-foreground">Could not load page. There might be a permission issue.</p>
-                </div>
-            </div>
-        )
+        console.error("Error fetching public page, treating as not found:", error);
+        // If any error occurs during fetch (including permissions), treat the page as not found.
+        notFound();
     }
 
     return (
