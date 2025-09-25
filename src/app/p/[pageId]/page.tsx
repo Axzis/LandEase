@@ -1,68 +1,48 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { doc, getDoc } from 'firebase/firestore';
+import { initializeFirebaseServer } from '@/firebase/server-init';
 import { EditorCanvas } from '@/components/editor/editor-canvas';
 import type { PageComponent } from '@/lib/types';
-import { Loader2 } from 'lucide-react';
+import { notFound } from 'next/navigation';
 
 interface PageData {
   content: PageComponent[];
   pageName: string;
   pageBackgroundColor?: string;
+  published?: boolean;
 }
 
-export default function PublicPage() {
-  const params = useParams();
-  const pageId = params.pageId as string;
+async function getPageData(pageId: string): Promise<PageData | null> {
+  try {
+    const { firestore } = initializeFirebaseServer();
+    const pageRef = doc(firestore, 'pages', pageId);
+    const pageSnap = await getDoc(pageRef);
 
-  const [pageData, setPageData] = useState<PageData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  useEffect(() => {
-    if (!pageId) {
-      setIsLoading(false);
-      setError("Page ID is missing.");
-      return;
+    if (!pageSnap.exists()) {
+      return null;
     }
+    
+    const pageData = pageSnap.data() as PageData;
 
-    // This component now ONLY loads from localStorage for live preview purposes.
-    // It does not fetch from Firestore to avoid permission issues for public viewers under strict auth rules.
-    try {
-        const localPreviewData = localStorage.getItem(`preview_${pageId}`);
-        if (localPreviewData) {
-            const parsedData = JSON.parse(localPreviewData);
-            setPageData(parsedData);
-        } else {
-             setError("This page is not available for preview. Please save it in the editor first to generate a preview.");
-        }
-    } catch(e) {
-        console.error("Could not parse preview data from localStorage", e);
-        setError("An error occurred while loading the preview data.");
-    } finally {
-        setIsLoading(false);
+    // Pastikan halaman telah dipublikasikan sebelum menampilkannya
+    if (pageData.published !== true) {
+      return null;
     }
-  }, [pageId]);
+    
+    return pageData;
 
-  if (isLoading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className='ml-2'>Loading Preview...</p>
-      </div>
-    );
+  } catch (error) {
+    console.error("Error fetching published page:", error);
+    // Jika ada error (termasuk error izin untuk halaman yang tidak dipublikasikan), anggap saja tidak ditemukan.
+    return null;
   }
+}
 
-  if (error || !pageData) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <div className="text-center">
-            <h1 className="text-2xl font-bold text-destructive">Could Not Load Preview</h1>
-            <p className="text-muted-foreground mt-2">{error || "The requested page could not be found."}</p>
-        </div>
-      </div>
-    );
+export default async function PublicPage({ params }: { params: { pageId: string } }) {
+  const pageData = await getPageData(params.pageId);
+
+  if (!pageData) {
+    // Fungsi notFound() dari Next.js akan menampilkan halaman 404 standar.
+    notFound();
   }
   
   return (
@@ -70,7 +50,7 @@ export default function PublicPage() {
       <EditorCanvas
         content={pageData.content}
         readOnly
-        pageId={pageId}
+        pageId={params.pageId}
         pageName={pageData.pageName}
       />
     </div>
