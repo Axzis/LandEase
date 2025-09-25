@@ -13,7 +13,15 @@ const componentMap: { [key: string]: React.ComponentType<any> } = {
     )),
     Heading: React.forwardRef<HTMLHeadingElement, { level: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6', text: string, align: string, [key: string]: any }>(({ level, text, align, ...rest }, ref) => {
         const Tag = level;
-        return <Tag ref={ref} className={cn('w-full', {'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })} {...rest}>{text}</Tag>;
+        const sizeClasses = {
+            h1: 'text-4xl md:text-5xl font-bold',
+            h2: 'text-3xl md:text-4xl font-bold',
+            h3: 'text-2xl md:text-3xl font-semibold',
+            h4: 'text-xl md:text-2xl font-semibold',
+            h5: 'text-lg md:text-xl font-medium',
+            h6: 'text-base md:text-lg font-medium',
+        };
+        return <Tag ref={ref} className={cn('w-full', sizeClasses[level], {'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })} {...rest}>{text}</Tag>;
     }),
     Text: React.forwardRef<HTMLParagraphElement, { text: string, align: string, fontFamily: string, fontWeight: string, fontStyle: string, textDecoration: string, [key: string]: any }>(({ text, align, fontFamily, fontWeight, fontStyle, textDecoration, ...rest }, ref) => (
         <p 
