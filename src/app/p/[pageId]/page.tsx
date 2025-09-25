@@ -50,8 +50,8 @@ export default function PublicPage({ params }: { params: Promise<{ pageId: strin
   }
 
   // CRITICAL: Manually enforce that only 'published' pages can be viewed.
+  // This adds a layer of security on the client, complementing the Firestore rules.
   if (pageData.published !== true) {
-    // You could show a specific "not published" page or just a 404.
     notFound();
   }
   
