@@ -2,80 +2,107 @@
  * @fileoverview Firestore Security Rules for LandEase Prototyping.
  *
  * Core Philosophy:
- * This ruleset employs a strict user-ownership model for user profiles and form submissions,
- * ensuring that users can only access their own data.  All potentially sensitive write operations
- * are guarded with identity checks. Data structure is flexible to allow for rapid iteration, but
- * critical fields like ownership are validated.
+ * This ruleset employs a strict user-ownership model for user profiles and submissions. Users can only
+ * read and write their own data. Read access to other areas of the database is generally denied,
+ * and write access is carefully controlled to prevent unauthorized data modification.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile data, with the userId matching the Firebase Auth UID.
- * - /users/{userId}/submissions/{submissionId}: Stores form submissions associated with a specific user and page.
+ * - /users/{userId}: Stores user profile information, with {userId} matching the Firebase Auth UID.
+ * - /users/{userId}/submissions/{submissionId}: Stores form submissions associated with a specific user.
  *
  * Key Security Decisions:
- * - User profiles are private and only accessible to the authenticated user.
- * - Form submissions are also private and only accessible to the authenticated user.
- * - Listing of user profiles is denied to prevent enumeration.
- * - Data validation is minimal to facilitate prototyping, focusing on ownership and relational integrity.
- *
- * Denormalization for Authorization:
- * The `userId` is used in the path for both user profiles and submissions, making it readily available for
- * authorization checks without requiring additional reads.
+ * - User data is strictly private and only accessible to the owning user.
+ * - Listing users is disallowed.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Secure user profiles, allowing only the owner to read and write their own profile.
-     * @path /users/{userId}
-     * @allow (create) - User with UID 'user123' can create their profile at /users/user123.
-     * @allow (get,update,delete) - User with UID 'user123' can read/update/delete their profile at /users/user123.
-     * @deny (create,update,delete) - User with UID 'user456' cannot create/update/delete the profile at /users/user123.
-     * @deny (list) - No user can list all user profiles.
-     * @principle Enforces document ownership for all operations on user profiles.
+     * @description Checks if the current user is signed in.
+     * @return {bool} True if the user is signed in, false otherwise.
      */
-    match /users/{userId} {
-      // Check if the user is signed in.
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-      // Allow creation if the userId matches the authenticated user's UID (self-creation).
-      allow create: if isSignedIn() && isOwner(userId);
-      // Allow update if the user is signed in and is the owner. Enforce immutability of the userId.
-      allow update: if isSignedIn() && isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isSignedIn() && isExistingOwner(userId);
-    }
-
-    /**
-     * @description Secure form submissions, allowing only the owner to read and write their own submissions.
-     * @path /users/{userId}/submissions/{submissionId}
-     * @allow (create) - User 'user123' can create a submission under /users/user123/submissions/sub1.
-     * @allow (get,update,delete) - User 'user123' can read/update/delete their submission under /users/user123/submissions/sub1.
-     * @deny (create,update,delete) - User 'user456' cannot create/update/delete a submission under /users/user123/submissions/sub1.
-     * @deny (list) - No user can list submissions of other users.
-     * @principle Enforces document ownership for all operations on form submissions.
-     */
-    match /users/{userId}/submissions/{submissionId} {
-      // Check if the user is signed in.
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if isSignedIn() && isOwner(userId);
-      // Allow creation if the userId matches the authenticated user's UID (self-creation).
-      allow create: if isSignedIn() && isOwner(userId);
-      // Allow update if the user is signed in and is the owner. Enforce immutability of the userId.
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
-    }
-
-    // Helper functions
     function isSignedIn() {
       return request.auth != null;
     }
 
+    /**
+     * @description Checks if the current user is the owner of the resource.
+     * @param {string} userId The user ID to compare with the request's auth UID.
+     * @return {bool} True if the user is the owner, false otherwise.
+     */
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
+    /**
+     * @description Checks if the current user is the existing owner of the resource.
+     * @param {string} userId The user ID to compare with the resource data's userId.
+     * @return {bool} True if the user is the owner and the resource exists, false otherwise.
+     */
     function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+      return isOwner(userId) && resource != null;
     }
+
+    /**
+     * @description Rules for user profiles.
+     * @path /users/{userId}
+     * @allow (create) User bHPXYwsgysTouOFPY0KrcK02b3p1 can create their profile with id "bHPXYwsgysTouOFPY0KrcK02b3p1".
+     * @deny (create) User bHPXYwsgysTouOFPY0KrcK02b3p1 cannot create a profile with id "otherUserId".
+     * @allow (get) User bHPXYwsgysTouOFPY0KrcK02b3p1 can get their own profile.
+     * @deny (get) User otherUser cannot get User bHPXYwsgysTouOFPY0KrcK02b3p1's profile.
+     * @allow (update) User bHPXYwsgysTouOFPY0KrcK02b3p1 can update their own profile.
+     * @deny (update) User otherUser cannot update User bHPXYwsgysTouOFPY0KrcK02b3p1's profile.
+     * @allow (delete) User bHPXYwsgysTouOFPY0KrcK02b3p1 can delete their own profile.
+     * @deny (delete) User otherUser cannot delete User bHPXYwsgysTouOFPY0KrcK02b3p1's profile.
+     * @principle Enforces document ownership for all operations on user profiles.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false; // Listing users is not permitted.
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Rules for user submissions.
+     * @path /users/{userId}/submissions/{submissionId}
+     * @allow (create) User bHPXYwsgysTouOFPY0KrcK02b3p1 can create a submission under their profile.
+     * @deny (create) User otherUser cannot create a submission under User bHPXYwsgysTouOFPY0KrcK02b3p1's profile.
+     * @allow (get) User bHPXYwsgysTouOFPY0KrcK02b3p1 can get their own submission.
+     * @deny (get) User otherUser cannot get User bHPXYwsgysTouOFPY0KrcK02b3p1's submission.
+     * @allow (update) User bHPXYwsgysTouOFPY0KrcK02b3p1 can update their own submission.
+     * @deny (update) User otherUser cannot update User bHPXYwsgysTouOFPY0KrcK02b3p1's submission.
+     * @allow (delete) User bHPXYwsgysTouOFPY0KrcK02b3p1 can delete their own submission.
+     * @deny (delete) User otherUser cannot delete User bHPXYwsgysTouOFPY0KrcK02b3p1's submission.
+     * @principle Enforces document ownership for all operations on user submissions.
+     */
+    match /users/{userId}/submissions/{submissionId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description OPEN READ ACCESS TO `pages/{pageId}` to any unauthenticated user.
+     * @path pages/{pageId}
+     * @allow (get) Anyone can read
+     * @allow (list) Anyone can list
+     * @deny (create) No one can create
+     * @deny (update) No one can update
+     * @deny (delete) No one can delete
+     * @principle Public Read, no write
+     */
+    match /pages/{pageId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
   }
 }
