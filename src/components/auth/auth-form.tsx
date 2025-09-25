@@ -92,9 +92,10 @@ export function AuthForm({ mode }: AuthFormProps) {
             lastUpdated: serverTimestamp(),
             published: false,
         };
-        addDoc(collection(firestore, 'pages'), defaultPageData).catch(error => {
+        const pagesCollectionRef = collection(firestore, 'pages');
+        addDoc(pagesCollectionRef, defaultPageData).catch(error => {
            errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'pages',
+            path: pagesCollectionRef.path,
             operation: 'create',
             requestResourceData: defaultPageData,
           }))
