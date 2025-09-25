@@ -1,11 +1,12 @@
 
-export type ComponentType = 'Section' | 'Heading' | 'Text' | 'Button' | 'Image' | 'Navbar' | 'Footer' | 'Columns';
+
+export type ComponentType = 'Section' | 'Heading' | 'Text' | 'Button' | 'Image' | 'Navbar' | 'Footer' | 'Columns' | 'Video';
 
 export interface BaseComponent {
   id: string;
   type: ComponentType;
   props: Record<string, any>;
-  children?: PageComponent[];
+  children?: PageComponent[] | PageComponent[][];
 }
 
 export interface SectionComponent extends BaseComponent {
@@ -95,6 +96,15 @@ export interface ImageComponent extends BaseComponent {
   };
 }
 
-export type PageComponent = SectionComponent | HeadingComponent | TextComponent | ButtonComponent | ImageComponent | NavbarComponent | FooterComponent | ColumnsComponent;
+export interface VideoComponent extends BaseComponent {
+  type: 'Video';
+  props: {
+    src: string;
+    padding: string;
+  };
+}
+
+
+export type PageComponent = SectionComponent | HeadingComponent | TextComponent | ButtonComponent | ImageComponent | NavbarComponent | FooterComponent | ColumnsComponent | VideoComponent;
 
 export type PageContent = PageComponent[];

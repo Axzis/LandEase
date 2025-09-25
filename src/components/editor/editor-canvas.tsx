@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { PageContent, PageComponent, ComponentType } from '@/lib/types';
@@ -6,6 +7,28 @@ import { ComponentWrapper } from './renderable/component-wrapper';
 import { cn } from '@/lib/utils';
 import React from 'react';
 import { Rocket } from 'lucide-react';
+
+const getEmbedUrl = (url: string): string | null => {
+    let videoId;
+    if (url.includes('youtube.com/watch')) {
+        videoId = new URL(url).searchParams.get('v');
+        return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+    }
+    if (url.includes('youtu.be/')) {
+        videoId = new URL(url).pathname.substring(1);
+        return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+    }
+    if (url.includes('vimeo.com/')) {
+        videoId = new URL(url).pathname.substring(1);
+        return videoId ? `https://player.vimeo.com/video/${videoId}` : null;
+    }
+    // If it's already an embed URL
+    if (url.includes('youtube.com/embed/') || url.includes('player.vimeo.com/video/')) {
+        return url;
+    }
+    return null;
+}
+
 
 // A map to dynamically render components based on their type
 const componentMap: { [key: string]: React.ComponentType<any> } = {
@@ -75,6 +98,30 @@ const componentMap: { [key: string]: React.ComponentType<any> } = {
             </div>
         </footer>
     )),
+    Video: React.forwardRef<HTMLDivElement, { src: string, padding: string, [key: string]: any }>(({ src, padding, ...rest }, ref) => {
+        const embedUrl = getEmbedUrl(src);
+        return (
+            <div ref={ref} style={{ padding }} {...rest}>
+                {embedUrl ? (
+                     <div className="aspect-w-16 aspect-h-9">
+                        <iframe
+                            src={embedUrl}
+                            title="Embedded video"
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                            className="w-full h-full"
+                            style={{aspectRatio: '16/9'}}
+                        ></iframe>
+                    </div>
+                ) : (
+                    <div className="w-full aspect-video bg-gray-200 flex items-center justify-center text-gray-500">
+                        Invalid Video URL. Please provide a valid YouTube or Vimeo link.
+                    </div>
+                )}
+            </div>
+        )
+    }),
 };
 
 
@@ -104,7 +151,7 @@ function RenderComponent({
 
   let childrenToRender;
 
-  if (component.type === 'Columns' && component.children) {
+  if (component.type === 'Columns' && Array.isArray(component.children)) {
     childrenToRender = component.children.map((column, colIndex) => (
         <ColumnDropZone 
             key={colIndex}
@@ -120,7 +167,7 @@ function RenderComponent({
             readOnly={readOnly}
         />
     ));
-  } else if (component.children) {
+  } else if (component.type === 'Section' && Array.isArray(component.children)) {
       childrenToRender = (component.children as PageComponent[]).map(child => (
         <RenderComponent 
           key={child.id} 
@@ -162,14 +209,16 @@ function RenderComponent({
 }
 
 function ColumnDropZone({ components, columnIndex, parentId, parentPath, ...props }: any) {
-    const { onAddComponent, onMoveComponent } = props;
+    const { onAddComponent, onMoveComponent, readOnly } = props;
 
     const handleDragOver = (e: React.DragEvent) => {
+        if(readOnly) return;
         e.preventDefault();
         e.stopPropagation();
     };
 
     const handleDrop = (e: React.DragEvent) => {
+        if(readOnly) return;
         e.preventDefault();
         e.stopPropagation();
 
@@ -184,7 +233,10 @@ function ColumnDropZone({ components, columnIndex, parentId, parentPath, ...prop
     
     return (
         <div 
-            className="p-2 border border-dashed border-gray-400 min-h-[100px] flex flex-col gap-2 bg-gray-50/50"
+            className={cn(
+                "min-h-[100px] flex flex-col gap-2",
+                !readOnly && "p-2 border border-dashed border-gray-400 bg-gray-50/50"
+            )}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
             data-column-index={columnIndex}
@@ -193,7 +245,7 @@ function ColumnDropZone({ components, columnIndex, parentId, parentPath, ...prop
             {components.map((component: PageComponent) => (
                 <RenderComponent key={component.id} component={component} parentPath={`${parentPath}.col${columnIndex}`} {...props} />
             ))}
-            {components.length === 0 && (
+            {!readOnly && components.length === 0 && (
                  <div className="text-center text-xs text-gray-500 self-center">Drop here</div>
             )}
         </div>

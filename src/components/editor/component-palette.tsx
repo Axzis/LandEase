@@ -1,4 +1,4 @@
-import { Heading1, Type, Image as ImageIcon, RectangleHorizontal, MousePointerClick, PanelTop, PanelBottom, Columns } from 'lucide-react';
+import { Heading1, Type, Image as ImageIcon, RectangleHorizontal, MousePointerClick, PanelTop, PanelBottom, Columns, Video } from 'lucide-react';
 import { ComponentType } from '@/lib/types';
 
 const components: { name: string; icon: JSX.Element; type: ComponentType }[] = [
@@ -10,6 +10,7 @@ const components: { name: string; icon: JSX.Element; type: ComponentType }[] = [
   { name: 'Text', icon: <Type />, type: 'Text' },
   { name: 'Button', icon: <MousePointerClick />, type: 'Button' },
   { name: 'Image', icon: <ImageIcon />, type: 'Image' },
+  { name: 'Video', icon: <Video />, type: 'Video' },
 ];
 
 export function ComponentPalette() {

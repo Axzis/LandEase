@@ -68,6 +68,8 @@ const createNewComponent = (type: ComponentType): PageComponent => {
       return { id, type: 'Navbar', props: { backgroundColor: '#FFFFFF', logoText: 'LandEase', logoImageUrl: '', links: [{text: 'Home', href: '#'}, {text: 'About', href: '#'}, {text: 'Contact', href: '#'}] } };
     case 'Footer':
       return { id, type: 'Footer', props: { backgroundColor: '#1F2937', copyrightText: `© ${new Date().getFullYear()} Your Company. All rights reserved.` } };
+    case 'Video':
+      return { id, type: 'Video', props: { src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', padding: '0px' } };
     default:
       throw new Error(`Unknown component type: ${type}`);
   }
@@ -109,51 +111,36 @@ export function EditorClient({ pageData }: EditorClientProps) {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [selectedComponentId]);
+  }, [selectedComponentId, content]); // Depend on content to get the latest version
 
   const handleSelectComponent = (id: string | null) => {
     setSelectedComponentId(id);
   };
   
-  const findComponent = (components: PageComponent[], id: string): { component: PageComponent | null, parent: PageComponent[] | null, index: number } => {
+  const findComponent = (components: PageContent, id: string): { component: PageComponent | null, parent: PageComponent[] | PageComponent[][] | null, index: number, parentComponent?: PageComponent } => {
     for (let i = 0; i < components.length; i++) {
         const component = components[i];
         if (component.id === id) return { component, parent: components, index: i };
+        
         if (component.children) {
-            const foundInChild = findComponentInChild(component, id);
-            if (foundInChild.component) return foundInChild;
+            if (Array.isArray(component.children[0])) { // Columns
+                for(let colIndex = 0; colIndex < component.children.length; colIndex++) {
+                    const column = component.children[colIndex] as PageComponent[];
+                    const found = findComponent(column, id);
+                    if (found.component) {
+                        return { ...found, parentComponent: component };
+                    }
+                }
+            } else { // Section
+                const found = findComponent(component.children as PageComponent[], id);
+                if (found.component) {
+                    return { ...found, parentComponent: component };
+                }
+            }
         }
     }
     return { component: null, parent: null, index: -1 };
   };
-
-  const findComponentInChild = (parent: PageComponent, id: string): { component: PageComponent | null, parent: PageComponent[] | null, index: number } => {
-    if (parent.type === 'Columns' && Array.isArray(parent.children)) {
-        for (let colIndex = 0; colIndex < parent.children.length; colIndex++) {
-            const column = parent.children[colIndex];
-            for (let itemIndex = 0; itemIndex < column.length; itemIndex++) {
-                if (column[itemIndex].id === id) {
-                    return { component: column[itemIndex], parent: column, index: itemIndex };
-                }
-                if(column[itemIndex].children){
-                    const found = findComponentInChild(column[itemIndex], id);
-                    if(found.component) return found;
-                }
-            }
-        }
-    } else if (parent.type === 'Section' && Array.isArray(parent.children)) {
-        for (let i = 0; i < parent.children.length; i++) {
-            const component = parent.children[i];
-            if (component.id === id) return { component, parent: parent.children, index: i };
-            if (component.children) {
-                const found = findComponentInChild(component, id);
-                if (found.component) return found;
-            }
-        }
-    }
-    return { component: null, parent: null, index: -1 };
-}
-
 
   const selectedComponent = selectedComponentId ? findComponent(content, selectedComponentId).component : null;
 
@@ -176,7 +163,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
         if (component.children) {
           if (component.type === 'Columns') {
             for (const col of component.children) {
-              if (updateRecursively(col)) return true;
+              if (updateRecursively(col as PageComponent[])) return true;
             }
           } else {
             if (updateRecursively(component.children as PageComponent[])) return true;
@@ -200,7 +187,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
             if (item.id === id) return false;
             if (item.children) {
                 if (item.type === 'Columns') {
-                    item.children = item.children.map(col => deleteRecursively(col));
+                    item.children = item.children.map(col => deleteRecursively(col as PageComponent[]));
                 } else {
                     item.children = deleteRecursively(item.children as PageComponent[]);
                 }
@@ -234,7 +221,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
       return items.map(item => {
         if (item.id === parentId) {
             if (item.type === 'Columns' && item.children && columnIndex !== undefined) {
-                const newChildren = [...item.children];
+                const newChildren = [...item.children] as PageComponent[][];
                 const targetColumn = newChildren[columnIndex] || [];
                 const targetIndex = targetColumn.findIndex(child => child.id === targetId);
                 
@@ -248,7 +235,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
                 newChildren[columnIndex] = targetColumn;
                 return { ...item, children: newChildren };
             } else if (item.type === 'Section' && item.children) {
-                const newChildren = [...item.children];
+                const newChildren = [...(item.children as PageComponent[])];
                 if (targetId === null) {
                     newChildren.push(newComponent);
                 } else {
@@ -263,7 +250,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
             }
         } else if (item.children) {
             if (item.type === 'Columns') {
-                 const newChildren = item.children.map(col => addRecursively(col));
+                 const newChildren = (item.children as PageComponent[][]).map(col => addRecursively(col));
                  return { ...item, children: newChildren };
             }
             return { ...item, children: addRecursively(item.children as PageComponent[]) };
@@ -290,7 +277,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
         }
         if (item.children) {
            if (item.type === 'Columns') {
-               item.children = item.children.map(col => removeComponent(col));
+               item.children = (item.children as PageComponent[][]).map(col => removeComponent(col));
            } else {
                item.children = removeComponent(item.children as PageComponent[]);
            }
@@ -307,7 +294,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
         return items.map(item => {
           if (item.id === parentId) {
             if (item.type === 'Columns' && item.children && columnIndex !== undefined) {
-                const newChildren = [...item.children];
+                const newChildren = [...(item.children as PageComponent[][])];
                 const targetColumn = newChildren[columnIndex] || [];
                 if (targetId) {
                     const targetIndex = targetColumn.findIndex(c => c.id === targetId);
@@ -322,7 +309,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
                 newChildren[columnIndex] = targetColumn;
                 return { ...item, children: newChildren };
             } else if (item.type === 'Section' && item.children) {
-                const newChildren = [...item.children];
+                const newChildren = [...(item.children as PageComponent[])];
                 if (targetId) {
                     const targetIndex = newChildren.findIndex(c => c.id === targetId);
                     if (targetIndex !== -1) {
@@ -337,7 +324,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
             }
           } else if (item.children) {
             if (item.type === 'Columns') {
-                const newChildren = item.children.map(col => insertComponent(col));
+                const newChildren = (item.children as PageComponent[][]).map(col => insertComponent(col));
                 return { ...item, children: newChildren };
             }
             return { ...item, children: insertComponent(item.children as PageComponent[]) };
