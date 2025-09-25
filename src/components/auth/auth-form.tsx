@@ -11,7 +11,7 @@ import {
   updateProfile,
 } from 'firebase/auth';
 import { useAuth, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { doc, setDoc, serverTimestamp, addDoc, collection } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, addDoc, collection, writeBatch } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -58,31 +58,29 @@ export function AuthForm({ mode }: AuthFormProps) {
 
   const onSubmit = async (values: AuthFormValues) => {
     setIsLoading(true);
+    if (!auth || !firestore) {
+      toast({ variant: 'destructive', title: 'Firebase not initialized.' });
+      setIsLoading(false);
+      return;
+    }
     try {
       if (mode === 'signup') {
         const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
         const user = userCredential.user;
         await updateProfile(user, { displayName: values.name });
         
+        const batch = writeBatch(firestore);
+
+        const userDocRef = doc(firestore, "users", user.uid);
         const userDocData = {
           uid: user.uid,
           email: user.email,
           displayName: values.name,
           createdAt: serverTimestamp(),
         };
+        batch.set(userDocRef, userDocData);
         
-        // Create user document
-        const userDocRef = doc(firestore, "users", user.uid);
-        setDoc(userDocRef, userDocData).catch(error => {
-          const permissionError = new FirestorePermissionError({
-              path: userDocRef.path,
-              operation: 'create',
-              requestResourceData: userDocData,
-          });
-          errorEmitter.emit('permission-error', permissionError);
-        });
-
-        // Create a default page for the new user
+        const newPageRef = doc(collection(firestore, 'pages'));
         const defaultPageData = {
             userId: user.uid,
             pageName: 'My First Page',
@@ -91,14 +89,14 @@ export function AuthForm({ mode }: AuthFormProps) {
             lastUpdated: serverTimestamp(),
             published: false,
         };
-        const pagesCollectionRef = collection(firestore, 'pages');
-        addDoc(pagesCollectionRef, defaultPageData).catch(error => {
-           const permissionError = new FirestorePermissionError({
-              path: pagesCollectionRef.path,
-              operation: 'create',
-              requestResourceData: defaultPageData,
-          });
-          errorEmitter.emit('permission-error', permissionError);
+        batch.set(newPageRef, defaultPageData);
+
+        const userPageLinkRef = doc(collection(firestore, `user_pages/${user.uid}/pages`));
+        batch.set(userPageLinkRef, { pageId: newPageRef.id, pageName: 'My First Page' });
+        
+        await batch.commit().catch(error => {
+           toast({ variant: 'destructive', title: 'Error during signup process', description: 'Failed to create initial user data.'});
+           console.error("Signup batch commit failed", error);
         });
         
         toast({ title: "Account created successfully!" });

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { collection, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useState } from 'react';
+import { collection, doc, addDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { useAuth, useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
@@ -15,10 +15,10 @@ import { useToast } from '@/hooks/use-toast';
 import { createDefaultPageContent } from '@/lib/utils';
 import { Loader2, LogOut, PlusCircle } from 'lucide-react';
 
-interface Page {
+interface UserPageLink {
   id: string;
+  pageId: string;
   pageName: string;
-  lastUpdated: any;
 }
 
 export function DashboardClient() {
@@ -30,31 +30,40 @@ export function DashboardClient() {
 
   const [isCreatingPage, setIsCreatingPage] = useState(false);
 
-  const pagesQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(collection(firestore, 'pages'), where('userId', '==', user.uid));
+  // Get the list of page IDs for the current user
+  const userPagesQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return collection(firestore, `user_pages/${user.uid}/pages`);
   }, [firestore, user]);
 
-  const { data: pages, isLoading, error } = useCollection<Page>(pagesQuery);
+  const { data: userPageLinks, isLoading, error } = useCollection<UserPageLink>(userPagesQuery);
 
   const handleCreatePage = async () => {
     if (!user || !firestore) return;
     setIsCreatingPage(true);
 
-    const pagesCollectionRef = collection(firestore, 'pages');
-    const newPageData = {
-      userId: user.uid,
-      pageName: 'Untitled Page',
-      content: createDefaultPageContent(),
-      createdAt: serverTimestamp(),
-      lastUpdated: serverTimestamp(),
-      published: false,
-    };
-
     try {
-        const docRef = await addDoc(pagesCollectionRef, newPageData);
+        const batch = writeBatch(firestore);
+
+        const newPageRef = doc(collection(firestore, 'pages'));
+        const newPageData = {
+          userId: user.uid,
+          pageName: 'Untitled Page',
+          content: createDefaultPageContent(),
+          createdAt: serverTimestamp(),
+          lastUpdated: serverTimestamp(),
+          published: false,
+        };
+        batch.set(newPageRef, newPageData);
+
+        // Link this new page to the user
+        const userPageLinkRef = doc(collection(firestore, `user_pages/${user.uid}/pages`));
+        batch.set(userPageLinkRef, { pageId: newPageRef.id, pageName: 'Untitled Page' });
+        
+        await batch.commit();
+
         toast({ title: "Page created!", description: "Redirecting to the editor..." });
-        router.push(`/editor/${docRef.id}`);
+        router.push(`/editor/${newPageRef.id}`);
     } catch(e) {
         console.error("Error creating page", e);
         toast({ variant: 'destructive', title: 'Error', description: 'Could not create a new page. Please check permissions and try again.'});
@@ -65,9 +74,11 @@ export function DashboardClient() {
 
   const handleSignOut = async () => {
     try {
-      await signOut(auth);
-      router.push('/signin');
-      toast({ title: "Signed out successfully." });
+      if(auth) {
+        await signOut(auth);
+        router.push('/signin');
+        toast({ title: "Signed out successfully." });
+      }
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Failed to sign out." });
     }
@@ -108,12 +119,12 @@ export function DashboardClient() {
         ) : error ? (
            <div className="text-center py-20 px-4 border-2 border-dashed rounded-lg border-destructive/50 bg-destructive/10">
               <h2 className="text-2xl font-semibold text-destructive-foreground">Error Loading Pages</h2>
-              <p className="mt-2 text-destructive-foreground/80">Could not load your pages due to an error: {error.message}</p>
+              <p className="mt-2 text-destructive-foreground/80">Could not load page list: {error.message}</p>
             </div>
-        ) : pages && pages.length > 0 ? (
+        ) : userPageLinks && userPageLinks.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {pages.map(page => (
-              <PageCard key={page.id} page={page} />
+            {userPageLinks.map(link => (
+              <PageCard key={link.id} pageId={link.pageId} />
             ))}
           </div>
         ) : (
