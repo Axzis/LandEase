@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { PageContent, PageComponent, ComponentType } from '@/lib/types';
@@ -7,9 +5,8 @@ import { ComponentWrapper } from './renderable/component-wrapper';
 import { cn } from '@/lib/utils';
 import React, { useState } from 'react';
 import { Rocket } from 'lucide-react';
-import { db } from '@/lib/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { useAuth } from '@/hooks/use-auth';
+import { useFirestore, useUser } from '@/firebase';
 import { Button as UIButton } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,7 +35,8 @@ const getEmbedUrl = (url: string): string | null => {
 }
 
 const PublicForm = ({ pageId, pageName, ...props }: { pageId: string, pageName: string, title: string, description: string, buttonText: string }) => {
-    const { user } = useAuth(); // Assume this hook gives the logged in user for ownership. A real app might not have this for public forms.
+    const { user } = useUser();
+    const firestore = useFirestore();
     const [email, setEmail] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
@@ -53,7 +51,7 @@ const PublicForm = ({ pageId, pageName, ...props }: { pageId: string, pageName: 
         setIsLoading(true);
 
         try {
-            await addDoc(collection(db, `users/${user.uid}/submissions`), {
+            await addDoc(collection(firestore, `users/${user.uid}/submissions`), {
                 pageId: pageId,
                 pageName: pageName,
                 formData: { email },
@@ -209,8 +207,8 @@ const componentMap: { [key: string]: React.ComponentType<any> } = {
             </div>
         )
     }),
-    Form: React.forwardRef<HTMLDivElement, { pageId?: string, pageName?: string, title: string, description: string, buttonText: string, padding: string, readOnly?: boolean, [key: string]: any }>(({ padding, readOnly, pageId, pageName, ...rest }, ref) => {
-        const { title, description, buttonText, ...domRest } = rest;
+    Form: React.forwardRef<HTMLDivElement, { pageId?: string, pageName?: string, title: string, description: string, buttonText: string, padding: string, readOnly?: boolean, [key: string]: any }>(({ padding, readOnly, pageId, pageName, title, description, buttonText, ...rest }, ref) => {
+        const { ...domRest } = rest;
         return (
             <div ref={ref} style={{ padding }} {...domRest} className="w-full flex justify-center">
                 {readOnly ? (

@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth, useFirestore, useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
@@ -11,8 +10,7 @@ import { PageCard } from '@/components/dashboard/page-card';
 import { PageGridSkeleton } from '@/components/dashboard/page-grid-skeleton';
 import { EmptyState } from '@/components/dashboard/empty-state';
 import { Logo } from '@/components/logo';
-import { User, signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { createDefaultPageContent } from '@/lib/utils';
 import { Loader2, LogOut, PlusCircle } from 'lucide-react';
@@ -24,9 +22,11 @@ interface Page {
 }
 
 export function DashboardClient() {
-  const { user } = useAuth();
+  const { user } = useUser();
   const router = useRouter();
   const { toast } = useToast();
+  const auth = useAuth();
+  const firestore = useFirestore();
 
   const [pages, setPages] = useState<Page[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,7 +42,7 @@ export function DashboardClient() {
     if (!user) return;
     setIsLoading(true);
     try {
-      const q = query(collection(db, 'pages'), where('userId', '==', user.uid));
+      const q = query(collection(firestore, 'pages'), where('userId', '==', user.uid));
       const querySnapshot = await getDocs(q);
       const userPages = querySnapshot.docs.map(doc => ({
         id: doc.id,
@@ -61,12 +61,13 @@ export function DashboardClient() {
     if (!user) return;
     setIsCreatingPage(true);
     try {
-      const newPageRef = await addDoc(collection(db, 'pages'), {
+      const newPageRef = await addDoc(collection(firestore, 'pages'), {
         userId: user.uid,
         pageName: 'Untitled Page',
         content: createDefaultPageContent(),
         createdAt: serverTimestamp(),
         lastUpdated: serverTimestamp(),
+        published: false,
       });
       toast({ title: "Page created!", description: "Redirecting to the editor..." });
       router.push(`/editor/${newPageRef.id}`);

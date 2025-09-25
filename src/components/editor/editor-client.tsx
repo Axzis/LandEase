@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { useFirestore } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -35,6 +34,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Rocket } from 'lucide-react';
+import { firebaseConfig } from '@/firebase/config';
 
 interface EditorClientProps {
   pageData: {
@@ -42,7 +42,6 @@ interface EditorClientProps {
     pageName: string;
     content: PageContent;
     published?: boolean;
-    projectId?: string;
     pageBackgroundColor?: string;
   };
 }
@@ -88,6 +87,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
   const [isDirty, setIsDirty] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const firestore = useFirestore();
 
   // Keyboard shortcut for deleting component
   useEffect(() => {
@@ -357,7 +357,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const pageRef = doc(db, 'pages', pageData.id);
+      const pageRef = doc(firestore, 'pages', pageData.id);
       await updateDoc(pageRef, {
         pageName,
         content: JSON.parse(JSON.stringify(content)),
@@ -384,7 +384,7 @@ export function EditorClient({ pageData }: EditorClientProps) {
   const handlePublishToggle = async (published: boolean) => {
     setIsSaving(true);
     try {
-      const pageRef = doc(db, 'pages', pageData.id);
+      const pageRef = doc(firestore, 'pages', pageData.id);
       await updateDoc(pageRef, {
         published,
         lastUpdated: serverTimestamp(),
@@ -410,13 +410,8 @@ export function EditorClient({ pageData }: EditorClientProps) {
 
   useEffect(() => {
     // This now runs only on the client, after the component has mounted
-    if (pageData.projectId) {
-      setPublicUrl(`https://${pageData.projectId}.web.app/p/${pageData.id}`);
-    } else {
-        // Fallback for when projectId is not available
-        setPublicUrl(`${window.location.origin}/p/${pageData.id}`);
-    }
-  }, [pageData.id, pageData.projectId]);
+    setPublicUrl(`${window.location.origin}/p/${pageData.id}`);
+  }, [pageData.id]);
 
 
   return (

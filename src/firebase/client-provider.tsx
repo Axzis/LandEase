@@ -3,6 +3,8 @@
 import React, { useMemo, type ReactNode } from 'react';
 import { FirebaseProvider } from '@/firebase/provider';
 import { initializeFirebase } from '@/firebase';
+import { Loader2 } from 'lucide-react';
+import { AuthProvider } from '@/firebase/auth-provider';
 
 interface FirebaseClientProviderProps {
   children: ReactNode;
@@ -14,13 +16,23 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
     return initializeFirebase();
   }, []); // Empty dependency array ensures this runs only once on mount
 
+  if (!firebaseServices) {
+     return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <FirebaseProvider
       firebaseApp={firebaseServices.firebaseApp}
       auth={firebaseServices.auth}
       firestore={firebaseServices.firestore}
     >
-      {children}
+      <AuthProvider>
+        {children}
+      </AuthProvider>
     </FirebaseProvider>
   );
 }

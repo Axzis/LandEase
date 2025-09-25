@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import 'aos/dist/aos.css';
 import { Toaster } from '@/components/ui/toaster';
-import { AuthProvider } from '@/context/auth-provider';
+import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
   title: 'LandEase - No-Code Landing Page Builder',
@@ -26,10 +26,10 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased h-full bg-background">
-        <AuthProvider>
+        <FirebaseClientProvider>
           {children}
           <Toaster />
-        </AuthProvider>
+        </FirebaseClientProvider>
       </body>
     </html>
   );

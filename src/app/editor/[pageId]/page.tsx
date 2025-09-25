@@ -1,12 +1,13 @@
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { EditorClient } from "@/components/editor/editor-client";
-import { db } from "@/lib/firebase";
+import { initializeFirebase } from "@/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { firebaseConfig } from "@/firebase/config";
 
 async function getPageData(pageId: string) {
   try {
-    const pageDoc = await getDoc(doc(db, "pages", pageId));
+    const { firestore } = initializeFirebase();
+    const pageDoc = await getDoc(doc(firestore, "pages", pageId));
     if (pageDoc.exists()) {
       return { id: pageDoc.id, ...pageDoc.data() };
     }

@@ -10,7 +10,7 @@ import {
   signInWithEmailAndPassword,
   updateProfile,
 } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
+import { useAuth, useFirestore } from '@/firebase';
 import { doc, setDoc, serverTimestamp, addDoc, collection } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,8 @@ export function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const auth = useAuth();
+  const firestore = useFirestore();
 
   const form = useForm<AuthFormValues>({
     resolver: zodResolver(formSchema),
@@ -62,7 +64,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         await updateProfile(user, { displayName: values.name });
         
         // Create user document
-        await setDoc(doc(db, "users", user.uid), {
+        await setDoc(doc(firestore, "users", user.uid), {
             uid: user.uid,
             email: user.email,
             displayName: values.name,
@@ -70,12 +72,13 @@ export function AuthForm({ mode }: AuthFormProps) {
         });
 
         // Create a default page for the new user
-        await addDoc(collection(db, 'pages'), {
+        await addDoc(collection(firestore, 'pages'), {
             userId: user.uid,
             pageName: 'My First Page',
             content: createDefaultPageContent(),
             createdAt: serverTimestamp(),
             lastUpdated: serverTimestamp(),
+            published: false,
         });
         
         toast({ title: "Account created successfully!" });
