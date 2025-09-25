@@ -1,45 +1,73 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import { doc, getDoc, DocumentData } from 'firebase/firestore';
 import { notFound } from 'next/navigation';
-import { initializeFirebaseServer } from '@/firebase/server-init';
+import { initializeFirebase } from '@/firebase'; // Menggunakan inisialisasi sisi klien
 import { EditorCanvas } from '@/components/editor/editor-canvas';
 import { Loader2 } from 'lucide-react';
-import { cache } from 'react';
 
-// Using cache to prevent re-fetching data for the same page within a single request
-const getPage = cache(async (pageId: string) => {
-    try {
-        const { firestore } = initializeFirebaseServer();
-        const pageDocRef = doc(firestore, "pages", pageId);
-        const pageSnap = await getDoc(pageDocRef);
+// Tipe untuk data halaman
+interface PageData extends DocumentData {
+  content: any[];
+  pageName: string;
+  pageBackgroundColor?: string;
+  published: boolean;
+}
 
-        if (!pageSnap.exists()) {
-            return null;
+export default function PublicPage({ params }: { params: { pageId: string } }) {
+    const { pageId } = params;
+    const [pageData, setPageData] = useState<PageData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!pageId) {
+            setError("Page ID is missing.");
+            setLoading(false);
+            return;
         }
 
-        const data = pageSnap.data();
-        // Security check: Only return published pages
-        if (!data.published) {
-            return null;
-        }
-        return data;
-    } catch (err) {
-        console.error("Error fetching public page:", err);
-        // If any error occurs (including permission errors), treat as not found
-        return null;
+        const fetchPage = async () => {
+            try {
+                // Inisialisasi Firebase di sisi klien
+                const { firestore } = initializeFirebase();
+                const pageDocRef = doc(firestore, "pages", pageId);
+                const pageSnap = await getDoc(pageDocRef);
+
+                if (!pageSnap.exists()) {
+                    setError("Halaman tidak ditemukan.");
+                } else {
+                    const data = pageSnap.data() as PageData;
+                    // Pemeriksaan keamanan di sisi klien: hanya tampilkan jika dipublikasikan
+                    if (data.published) {
+                        setPageData(data);
+                    } else {
+                        setError("Halaman ini tidak dipublikasikan.");
+                    }
+                }
+            } catch (err) {
+                console.error("Error fetching public page:", err);
+                setError("Gagal memuat halaman.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchPage();
+    }, [pageId]);
+
+    if (loading) {
+        return (
+            <div className="flex h-screen items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="ml-2">Memuat halaman...</p>
+            </div>
+        );
     }
-});
 
-
-export default async function PublicPage({ params }: { params: { pageId: string } }) {
-    const pageId = params.pageId;
-    
-    if (!pageId) {
-        notFound();
-    }
-
-    const pageData = await getPage(pageId);
-
-    if (!pageData) {
+    if (error || !pageData) {
+        // Menggunakan notFound() akan me-render halaman 404 Next.js
         notFound();
     }
 
