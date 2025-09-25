@@ -37,20 +37,20 @@ export default function PublicPage({ params }: { params: Promise<{ pageId: strin
     );
   }
 
+  // If there's an error (like permission-denied), show not found.
   if (error) {
      console.error("Error loading page:", error);
-     // Ini bisa jadi error izin atau dokumen tidak ada.
-     // notFound() adalah default yang masuk akal.
+     // This is critical. A permission error from useDoc needs to result in a 404.
      notFound();
   }
 
-  // Jika data null setelah memuat dan tidak ada error, itu berarti dokumen tidak ada.
+  // If data is null after loading and there's no error, it means the document doesn't exist.
   if (!pageData) {
     notFound();
   }
 
-  // KRITIS: Secara manual menegakkan bahwa hanya halaman yang 'published' yang dapat dilihat.
-  // Ini menambahkan lapisan keamanan di klien, melengkapi aturan Firestore.
+  // CRITICAL: Manually enforce that only 'published' pages can be viewed.
+  // This adds a layer of client-side security, complementing the Firestore rules.
   if (pageData.published !== true) {
     notFound();
   }
