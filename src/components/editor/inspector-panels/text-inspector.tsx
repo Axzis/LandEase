@@ -7,6 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { BaseInspector } from './base-inspector';
 import { Button } from '@/components/ui/button';
 import { Bold, Italic, Strikethrough } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { AITextGenerator } from '../ai-text-generator';
 
 interface TextInspectorProps {
   component: TextComponent;
@@ -43,6 +45,12 @@ export function TextInspector({ component, onUpdate }: TextInspectorProps) {
           rows={5}
         />
       </div>
+
+      <Separator />
+
+      <AITextGenerator onGeneratedText={(newText) => onUpdate(id, { text: newText })} />
+      
+      <Separator />
       
       <div className="space-y-2">
         <Label>Styling</Label>
