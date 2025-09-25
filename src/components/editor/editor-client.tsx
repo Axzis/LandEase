@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -369,7 +369,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
       pageBackgroundColor,
     };
 
-    updateDoc(pageDocRef, dataToSave)
+    setDoc(pageDocRef, dataToSave, { merge: true })
       .then(() => {
         toast({
           title: 'Page Saved Successfully!',
@@ -404,7 +404,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
         lastUpdated: serverTimestamp(),
     };
 
-    updateDoc(pageDocRef, dataToUpdate)
+    setDoc(pageDocRef, dataToUpdate, { merge: true })
       .then(() => {
         setIsPublished(published);
         toast({
