@@ -1,5 +1,6 @@
 
 
+
 export type ComponentType = 'Section' | 'Heading' | 'Text' | 'Button' | 'Image' | 'Navbar' | 'Footer' | 'Columns' | 'Video' | 'Form';
 
 export interface BaseComponent {
@@ -104,6 +105,15 @@ export interface VideoComponent extends BaseComponent {
   };
 }
 
+export interface FormField {
+    id: string;
+    name: string;
+    label: string;
+    type: 'text' | 'email' | 'textarea';
+    placeholder?: string;
+    required: boolean;
+}
+
 export interface FormComponent extends BaseComponent {
   type: 'Form';
   props: {
@@ -111,6 +121,7 @@ export interface FormComponent extends BaseComponent {
     description: string;
     buttonText: string;
     padding: string;
+    fields: FormField[];
   };
 }
 

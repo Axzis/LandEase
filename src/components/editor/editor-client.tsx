@@ -62,7 +62,20 @@ const createNewComponent = (type: ComponentType): PageComponent => {
     case 'Video':
       return { id, type: 'Video', props: { src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', padding: '0px' } };
     case 'Form':
-      return { id, type: 'Form', props: { title: 'Contact Us', description: 'Fill out the form below and we will get back to you.', buttonText: 'Submit', padding: '16px' } };
+      return { 
+        id, 
+        type: 'Form', 
+        props: { 
+          title: 'Contact Us', 
+          description: 'Fill out the form below and we will get back to you.', 
+          buttonText: 'Submit', 
+          padding: '16px',
+          fields: [
+            { id: 'field_1', name: 'name', label: 'Name', type: 'text', placeholder: 'Your Name', required: true },
+            { id: 'field_2', name: 'email', label: 'Email', type: 'email', placeholder: 'you@example.com', required: true },
+          ]
+        } 
+      };
     default:
       throw new Error(`Unknown component type: ${type}`);
   }
@@ -73,9 +86,9 @@ export function EditorClient({ pageId }: EditorClientProps) {
   const firestore = useFirestore();
   const { user, loading: isUserLoading } = useUser();
   const pageDocRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !pageId) return null;
     return doc(firestore, 'pages', pageId);
-  }, [firestore, pageId, user]);
+  }, [firestore, pageId]);
 
   const { data: pageData, isLoading: isPageLoading, error: pageError } = useDoc(pageDocRef);
 
@@ -365,10 +378,10 @@ export function EditorClient({ pageId }: EditorClientProps) {
 
 
   const handleSave = async () => {
-    if (!pageDocRef || !user) return;
+    if (!pageDocRef) return;
     setIsSaving(true);
     const dataToSave = {
-      userId: user.uid, // Ensure userId is always included on save
+      userId: user?.uid,
       pageName,
       content: JSON.parse(JSON.stringify(content)),
       lastUpdated: serverTimestamp(),
@@ -376,7 +389,6 @@ export function EditorClient({ pageId }: EditorClientProps) {
       published: isPublished
     };
 
-    // For live preview, save current state to localStorage
     try {
         localStorage.setItem(`preview_${pageId}`, JSON.stringify(dataToSave));
     } catch (e) {
@@ -429,9 +441,6 @@ export function EditorClient({ pageId }: EditorClientProps) {
     );
   }
   
-  // This condition handles the case where a non-owner tries to access the editor url.
-  // The useDoc hook will throw a permission error, which is caught and set in pageError.
-  // We can then check for the user and see if they match the page's user ID.
   if (pageData && user && pageData.userId !== user.uid) {
      return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -444,7 +453,6 @@ export function EditorClient({ pageId }: EditorClientProps) {
     )
   }
 
-  // This handles general errors, including the permission error for non-owners.
   if (pageError) {
     return (
       <div className="flex h-screen w-full items-center justify-center">

@@ -1,17 +1,18 @@
 'use client';
 
-import { PageContent, PageComponent, ComponentType } from '@/lib/types';
+import { PageContent, PageComponent, ComponentType, FormField } from '@/lib/types';
 import { ComponentWrapper } from './renderable/component-wrapper';
 import { cn } from '@/lib/utils';
 import React, { useState } from 'react';
 import { Rocket } from 'lucide-react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { Button as UIButton } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { Textarea } from '../ui/textarea';
 
 const getEmbedUrl = (url: string): string | null => {
     let videoId;
@@ -34,31 +35,41 @@ const getEmbedUrl = (url: string): string | null => {
     return null;
 }
 
-const PublicForm = ({ pageId, pageName, ...props }: { pageId: string, pageName: string, title: string, description: string, buttonText: string }) => {
-    const { user } = useUser();
+const PublicForm = ({ pageId, pageName, ...props }: { pageId: string, pageName: string, title: string, description: string, buttonText: string, fields: FormField[] }) => {
     const firestore = useFirestore();
-    const [email, setEmail] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(false);
+    
+    const initialFormState = props.fields.reduce((acc, field) => {
+        acc[field.name] = '';
+        return acc;
+    }, {} as Record<string, string>);
+    
+    const [formData, setFormData] = useState(initialFormState);
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!pageId || !user?.uid) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Cannot submit form. Page or user information is missing.' });
+        if (!pageId) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Cannot submit form. Page information is missing.' });
             return;
         }
         
         setIsLoading(true);
 
         try {
-            await addDoc(collection(firestore, `users/${user.uid}/submissions`), {
+            await addDoc(collection(firestore, `submissions`), { // Changed: submissions at root
                 pageId: pageId,
                 pageName: pageName,
-                formData: { email },
+                formData: formData,
                 submittedAt: serverTimestamp(),
             });
             toast({ title: 'Success!', description: 'Your submission has been received.'});
-            setEmail('');
+            setFormData(initialFormState); // Reset form
         } catch (error) {
             console.error("Error submitting form:", error);
             toast({ variant: 'destructive', title: 'Submission Error', description: 'Could not submit your response. Please try again.' });
@@ -67,23 +78,34 @@ const PublicForm = ({ pageId, pageName, ...props }: { pageId: string, pageName: 
         }
     };
 
+    const renderField = (field: FormField) => {
+        const commonProps = {
+            id: field.id,
+            name: field.name,
+            placeholder: field.placeholder,
+            value: formData[field.name],
+            onChange: handleInputChange,
+            required: field.required,
+            className: "bg-background",
+        };
+
+        if (field.type === 'textarea') {
+            return <Textarea {...commonProps} />;
+        }
+        return <Input type={field.type} {...commonProps} />;
+    }
+
     return (
         <form onSubmit={handleSubmit} className="w-full max-w-md mx-auto bg-card p-8 rounded-lg shadow-md border">
             <h3 className="text-2xl font-bold mb-2 text-card-foreground">{props.title}</h3>
             <p className="text-muted-foreground mb-6">{props.description}</p>
             <div className="space-y-4">
-                <div className="space-y-2">
-                    <Label htmlFor="email" className="text-card-foreground">Email</Label>
-                    <Input 
-                        id="email"
-                        type="email"
-                        placeholder="you@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        className="bg-background"
-                    />
-                </div>
+                {(props.fields || []).map(field => (
+                    <div key={field.id} className="space-y-2">
+                        <Label htmlFor={field.id} className="text-card-foreground">{field.label}</Label>
+                        {renderField(field)}
+                    </div>
+                ))}
                 <UIButton type="submit" className="w-full" disabled={isLoading}>
                      {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {props.buttonText}
@@ -207,21 +229,31 @@ const componentMap: { [key: string]: React.ComponentType<any> } = {
             </div>
         )
     }),
-    Form: React.forwardRef<HTMLDivElement, { pageId?: string, pageName?: string, title: string, description: string, buttonText: string, padding: string, readOnly?: boolean, [key: string]: any }>(({ padding, readOnly, pageId, pageName, title, description, buttonText, ...rest }, ref) => {
+    Form: React.forwardRef<HTMLDivElement, { pageId?: string, pageName?: string, title: string, description: string, buttonText: string, fields: FormField[], padding: string, readOnly?: boolean, [key: string]: any }>(({ padding, readOnly, pageId, pageName, title, description, buttonText, fields, ...rest }, ref) => {
         const { ...domRest } = rest;
+
+        const renderField = (field: FormField) => {
+            if (field.type === 'textarea') {
+                return <Textarea id={field.id} placeholder={field.placeholder} disabled />;
+            }
+            return <Input id={field.id} type={field.type} placeholder={field.placeholder} disabled />;
+        }
+
         return (
             <div ref={ref} style={{ padding }} {...domRest} className="w-full flex justify-center">
                 {readOnly ? (
-                    <PublicForm pageId={pageId!} pageName={pageName!} title={title} description={description} buttonText={buttonText} />
+                    <PublicForm pageId={pageId!} pageName={pageName!} title={title} description={description} buttonText={buttonText} fields={fields} />
                 ) : (
                     <div className="w-full max-w-md mx-auto bg-card p-8 rounded-lg shadow-md border pointer-events-none">
                         <h3 className="text-2xl font-bold mb-2 text-card-foreground">{title}</h3>
                         <p className="text-muted-foreground mb-6">{description}</p>
                         <div className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="email-preview" className="text-card-foreground">Email</Label>
-                                <Input id="email-preview" type="email" placeholder="you@example.com" disabled className="bg-background"/>
-                            </div>
+                            {(fields || []).map(field => (
+                                <div key={field.id} className="space-y-2">
+                                    <Label htmlFor={field.id} className="text-card-foreground">{field.label}</Label>
+                                    {renderField(field)}
+                                </div>
+                            ))}
                             <UIButton type="button" className="w-full" disabled>{buttonText}</UIButton>
                         </div>
                     </div>
