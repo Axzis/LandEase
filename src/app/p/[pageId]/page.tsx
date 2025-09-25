@@ -2,23 +2,32 @@ import { EditorCanvas } from "@/components/editor/editor-canvas";
 import { initializeFirebaseServer } from "@/firebase/server-init";
 import { doc, getDoc } from "firebase/firestore";
 import type { Metadata } from 'next'
+import { FirestorePermissionError } from "@/firebase/errors";
 
 async function getPageData(pageId: string) {
-  try {
     const { firestore } = initializeFirebaseServer();
-    const pageDoc = await getDoc(doc(firestore, "pages", pageId));
-    if (pageDoc.exists()) {
-      const data = pageDoc.data();
-      // Only return data if the page is published
-      if (data.published) {
-        return { id: pageDoc.id, ...data };
-      }
+    const pageDocRef = doc(firestore, "pages", pageId);
+    
+    try {
+        const pageDoc = await getDoc(pageDocRef);
+        if (pageDoc.exists()) {
+          const data = pageDoc.data();
+          // Only return data if the page is published
+          if (data.published) {
+            return { id: pageDoc.id, ...data };
+          }
+        }
+        return null;
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: pageDocRef.path,
+                operation: 'get',
+            });
+            throw permissionError;
+        }
+        throw error;
     }
-    return null;
-  } catch (error) {
-    console.error("Error fetching page data:", error);
-    return null;
-  }
 }
 
 export async function generateMetadata({ params }: { params: { pageId: string } }): Promise<Metadata> {
