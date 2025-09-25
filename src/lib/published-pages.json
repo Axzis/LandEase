@@ -132,5 +132,51 @@
       }
     ],
     "pageBackgroundColor": "#FFFFFF"
+  },
+  "xdQKDnDP3iPH7burtml4": {
+    "pageName": "Untitled Page",
+    "content": [
+      {
+        "type": "Section",
+        "id": "hero-1",
+        "props": {
+          "padding": "64px",
+          "backgroundColor": "#FFFFFF"
+        },
+        "children": [
+          {
+            "type": "Heading",
+            "id": "head-1",
+            "props": {
+              "level": "h1",
+              "align": "center",
+              "text": "Welcome to Your New Page"
+            }
+          },
+          {
+            "id": "text-1",
+            "type": "Text",
+            "props": {
+              "textDecoration": "none",
+              "fontWeight": "normal",
+              "fontStyle": "normal",
+              "align": "center",
+              "fontFamily": "Inter",
+              "text": "This is your starting point. Click on any element to edit it or drag new components from the left sidebar!"
+            }
+          },
+          {
+            "id": "btn-1",
+            "type": "Button",
+            "props": {
+              "href": "#",
+              "text": "Get Started",
+              "align": "center"
+            }
+          }
+        ]
+      }
+    ],
+    "pageBackgroundColor": "#FFFFFF"
   }
 }
