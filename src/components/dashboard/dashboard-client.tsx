@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
-import { useAuth, useFirestore, useUser } from '@/firebase';
+import { collection, query, where, getDocs, addDoc, serverTimestamp, doc } from 'firebase/firestore';
+import { useAuth, useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
@@ -50,8 +50,12 @@ export function DashboardClient() {
       })) as Page[];
       setPages(userPages);
     } catch (error) {
-      console.error("Error fetching pages:", error);
-      toast({ variant: "destructive", title: "Error", description: "Could not fetch your pages." });
+        // Since useCollection is not used here, we manually create and emit the error.
+        const permissionError = new FirestorePermissionError({
+            path: 'pages', // The query is on the 'pages' collection
+            operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
     } finally {
       setIsLoading(false);
     }
@@ -77,12 +81,12 @@ export function DashboardClient() {
         router.push(`/editor/${docRef.id}`);
       })
       .catch((error) => {
-        console.error("Page creation failed:", error);
-        toast({
-          variant: "destructive",
-          title: "Creation Failed",
-          description: "Could not create a new page. Please try again."
+        const permissionError = new FirestorePermissionError({
+            path: pagesCollectionRef.path,
+            operation: 'create',
+            requestResourceData: newPageData,
         });
+        errorEmitter.emit('permission-error', permissionError);
       })
       .finally(() => {
         setIsCreatingPage(false);

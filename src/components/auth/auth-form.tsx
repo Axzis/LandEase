@@ -10,7 +10,7 @@ import {
   signInWithEmailAndPassword,
   updateProfile,
 } from 'firebase/auth';
-import { useAuth, useFirestore } from '@/firebase';
+import { useAuth, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, setDoc, serverTimestamp, addDoc, collection } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
@@ -74,8 +74,12 @@ export function AuthForm({ mode }: AuthFormProps) {
         // Create user document
         const userDocRef = doc(firestore, "users", user.uid);
         setDoc(userDocRef, userDocData).catch(error => {
-          console.error("Error creating user document:", error);
-          // Non-critical, so we don't block UI. Just log it.
+          const permissionError = new FirestorePermissionError({
+              path: userDocRef.path,
+              operation: 'create',
+              requestResourceData: userDocData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
         });
 
         // Create a default page for the new user
@@ -89,8 +93,12 @@ export function AuthForm({ mode }: AuthFormProps) {
         };
         const pagesCollectionRef = collection(firestore, 'pages');
         addDoc(pagesCollectionRef, defaultPageData).catch(error => {
-           console.error("Error creating default page:", error);
-           // Also non-critical for the auth flow itself.
+           const permissionError = new FirestorePermissionError({
+              path: pagesCollectionRef.path,
+              operation: 'create',
+              requestResourceData: defaultPageData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
         });
         
         toast({ title: "Account created successfully!" });

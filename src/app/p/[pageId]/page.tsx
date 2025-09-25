@@ -2,7 +2,6 @@ import { getDoc, doc, DocumentData } from 'firebase/firestore';
 import { notFound } from 'next/navigation';
 import { initializeFirebaseServer } from '@/firebase/server-init';
 import { EditorCanvas } from '@/components/editor/editor-canvas';
-import { Loader2 } from 'lucide-react';
 
 // This page is now a Server Component to fetch data server-side.
 // Revalidate set to 0 to ensure fresh data on each request.
@@ -26,8 +25,7 @@ async function getPageData(pageId: string): Promise<PageData | null> {
     }
 
     const data = pageSnap.data() as PageData;
-    // The security for unpublished pages is now handled by Firestore rules.
-    // However, we double-check here for robustness.
+    // Server-side check for published status
     if (!data.published) {
         return null;
     }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
+import { useFirestore, useDoc, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -365,9 +365,10 @@ export function EditorClient({ pageId }: EditorClientProps) {
 
 
   const handleSave = async () => {
-    if (!pageDocRef) return;
+    if (!pageDocRef || !user) return;
     setIsSaving(true);
     const dataToSave = {
+      userId: user.uid, // Ensure userId is always included on save
       pageName,
       content: JSON.parse(JSON.stringify(content)),
       lastUpdated: serverTimestamp(),
@@ -383,12 +384,12 @@ export function EditorClient({ pageId }: EditorClientProps) {
         setIsDirty(false);
       })
       .catch((error) => {
-        console.error("Save failed:", error);
-        toast({
-            variant: 'destructive',
-            title: 'Save Failed',
-            description: 'Could not save your changes. Please try again.',
+        const permissionError = new FirestorePermissionError({
+            path: pageDocRef.path,
+            operation: 'update',
+            requestResourceData: dataToSave,
         });
+        errorEmitter.emit('permission-error', permissionError);
       })
       .finally(() => {
         setIsSaving(false);
@@ -413,12 +414,12 @@ export function EditorClient({ pageId }: EditorClientProps) {
         });
       })
       .catch((error) => {
-        console.error("Publish toggle failed:", error);
-        toast({
-          variant: "destructive",
-          title: "Update Failed",
-          description: "Could not update publish status. Please try again."
+         const permissionError = new FirestorePermissionError({
+            path: pageDocRef.path,
+            operation: 'update',
+            requestResourceData: dataToUpdate,
         });
+        errorEmitter.emit('permission-error', permissionError);
       })
       .finally(() => {
         setIsSaving(false);
@@ -438,15 +439,29 @@ export function EditorClient({ pageId }: EditorClientProps) {
       </div>
     );
   }
+  
+  // This condition handles the case where a non-owner tries to access the editor url.
+  // The useDoc hook will throw a permission error, which is caught and set in pageError.
+  // We can then check for the user and see if they match the page's user ID.
+  if (pageData && user && pageData.userId !== user.uid) {
+     return (
+      <div className="flex h-screen w-full items-center justify-center">
+          <div className="text-center p-4">
+              <h2 className="text-2xl font-bold text-destructive mb-2">Access Denied</h2>
+              <p className="text-muted-foreground max-w-md mx-auto">You do not have permission to edit this page.</p>
+              <Button onClick={() => router.push('/dashboard')} className="mt-4">Go to Dashboard</Button>
+          </div>
+      </div>
+    )
+  }
 
+  // This handles general errors, including the permission error for non-owners.
   if (pageError) {
-    // With open rules, this error is less likely to be a permission issue
-    // but could be a network error or other client-side issue.
     return (
       <div className="flex h-screen w-full items-center justify-center">
           <div className="text-center p-4">
               <h2 className="text-2xl font-bold text-destructive mb-2">Error Loading Page</h2>
-              <p className="text-muted-foreground max-w-md mx-auto">Could not load page data. Please check your internet connection and try again. If the problem persists, the page may have been deleted.</p>
+              <p className="text-muted-foreground max-w-md mx-auto">Could not load page data. You may not have permission to view this page, or it may have been deleted.</p>
               <Button onClick={() => router.push('/dashboard')} className="mt-4">Go to Dashboard</Button>
           </div>
       </div>
