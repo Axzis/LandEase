@@ -11,7 +11,7 @@ import {
   updateProfile,
 } from 'firebase/auth';
 import { useAuth, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { doc, setDoc, serverTimestamp, collection, writeBatch } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -69,43 +69,27 @@ export function AuthForm({ mode }: AuthFormProps) {
         const user = userCredential.user;
         await updateProfile(user, { displayName: values.name });
         
-        const batch = writeBatch(firestore);
-
-        // Create the page document
-        const newPageRef = doc(collection(firestore, 'pages'));
-        const defaultPageData = {
-            userId: user.uid,
-            pageName: 'My First Page',
-            content: createDefaultPageContent(),
-            createdAt: serverTimestamp(),
-            lastUpdated: serverTimestamp(),
-            published: false,
-        };
-        batch.set(newPageRef, defaultPageData);
-
-        // Create the user document with the reference to the new page
+        // Create user document only, remove page creation from this flow.
         const userDocRef = doc(firestore, "users", user.uid);
         const userDocData = {
           uid: user.uid,
           email: user.email,
           displayName: values.name,
           createdAt: serverTimestamp(),
-          pages: [
-            { pageId: newPageRef.id, pageName: 'My First Page' }
-          ]
+          pages: [] // Start with an empty array of pages
         };
-        batch.set(userDocRef, userDocData);
-        
-        batch.commit().catch(error => {
+
+        // Use a simple setDoc instead of a batch write to avoid complex permission issues.
+        setDoc(userDocRef, userDocData).catch(error => {
           if (error.code === 'permission-denied') {
             const permissionError = new FirestorePermissionError({
-                path: `users/${user.uid} and pages/${newPageRef.id}`, // Simplified path for batch
+                path: `users/${user.uid}`,
                 operation: 'create',
-                requestResourceData: { user: userDocData, page: defaultPageData },
+                requestResourceData: userDocData,
             });
             errorEmitter.emit('permission-error', permissionError);
           } else {
-            toast({ variant: 'destructive', title: 'Error during signup process', description: 'Failed to create initial user data.'});
+            toast({ variant: 'destructive', title: 'Error during signup', description: 'Failed to create user data.'});
           }
         });
         
@@ -118,10 +102,32 @@ export function AuthForm({ mode }: AuthFormProps) {
         router.push('/dashboard');
       }
     } catch (error: any) {
+      // Handle known Firebase auth errors
+      let errorMessage = 'An unexpected error occurred.';
+      if (error instanceof FirebaseError) {
+        switch (error.code) {
+          case 'auth/email-already-in-use':
+            errorMessage = 'This email is already in use. Please sign in or use a different email.';
+            break;
+          case 'auth/weak-password':
+            errorMessage = 'The password is too weak. Please use at least 6 characters.';
+            break;
+          case 'auth/invalid-email':
+            errorMessage = 'Please enter a valid email address.';
+            break;
+          case 'auth/user-not-found':
+          case 'auth/wrong-password':
+             errorMessage = 'Invalid email or password. Please try again.';
+             break;
+          default:
+            errorMessage = error.message;
+        }
+      }
+      
       toast({
         variant: 'destructive',
         title: 'Authentication Failed',
-        description: error.message || 'An unexpected error occurred.',
+        description: errorMessage,
       });
     } finally {
       setIsLoading(false);
