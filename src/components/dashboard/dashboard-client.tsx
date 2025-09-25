@@ -58,7 +58,7 @@ export function DashboardClient() {
   };
 
   const handleCreatePage = async () => {
-    if (!user) return;
+    if (!user || !firestore) return;
     setIsCreatingPage(true);
 
     const pagesCollectionRef = collection(firestore, 'pages');
@@ -71,33 +71,28 @@ export function DashboardClient() {
       published: false,
     };
 
-    try {
-      const newPageRef = await addDoc(pagesCollectionRef, newPageData);
-      toast({ title: "Page created!", description: "Redirecting to the editor..." });
-      router.push(`/editor/${newPageRef.id}`);
-    } catch (error) {
-       // This catch block is now primarily for non-permission errors,
-       // but we check and emit a contextual error just in case.
-       // The more specific error handling is now in the .catch of the promise.
-       toast({ variant: "destructive", title: "Error", description: "Could not create a new page." });
-       setIsCreatingPage(false);
-    }
-
     addDoc(pagesCollectionRef, newPageData)
-      .then(docRef => {
+      .then((docRef) => {
         toast({ title: "Page created!", description: "Redirecting to the editor..." });
         router.push(`/editor/${docRef.id}`);
       })
-      .catch(error => {
+      .catch((error) => {
+        // Create the rich, contextual error
         const permissionError = new FirestorePermissionError({
-            path: pagesCollectionRef.path,
-            operation: 'create',
-            requestResourceData: newPageData,
+          path: pagesCollectionRef.path,
+          operation: 'create',
+          requestResourceData: newPageData,
         });
+        
+        // Emit the error for the dev overlay
         errorEmitter.emit('permission-error', permissionError);
         
-        // Also provide immediate feedback to the user
-        toast({ variant: "destructive", title: "Creation Failed", description: "You don't have permission to create a new page. Check the console for details." });
+        // Also provide immediate feedback to the user in the UI
+        toast({
+          variant: "destructive",
+          title: "Creation Failed",
+          description: "You don't have permission to create a page. Check the developer console for details."
+        });
       })
       .finally(() => {
         setIsCreatingPage(false);
