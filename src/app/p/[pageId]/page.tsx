@@ -1,10 +1,11 @@
 'use client';
 
 import { EditorCanvas } from '@/components/editor/editor-canvas';
-import { notFound, useRouter } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { doc } from 'firebase/firestore';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { Loader2 } from 'lucide-react';
+import React from 'react';
 
 interface PageData {
     content: any[];
@@ -14,14 +15,17 @@ interface PageData {
     userId: string;
 }
 
-export default function PublicPage({ params }: { params: { pageId: string } }) {
+export default function PublicPage({ params }: { params: Promise<{ pageId: string }> }) {
   const firestore = useFirestore();
-  const router = useRouter();
+  // Next.js now provides params as a promise in client components.
+  // We must use `React.use` to unwrap it.
+  const resolvedParams = React.use(params);
+  const { pageId } = resolvedParams;
   
   const pageDocRef = useMemoFirebase(() => {
     if (!firestore) return null;
-    return doc(firestore, 'pages', params.pageId);
-  }, [firestore, params.pageId]);
+    return doc(firestore, 'pages', pageId);
+  }, [firestore, pageId]);
 
   const { data: pageData, isLoading, error } = useDoc<PageData>(pageDocRef);
 
@@ -56,7 +60,7 @@ export default function PublicPage({ params }: { params: { pageId: string } }) {
       <EditorCanvas
         content={pageData.content}
         readOnly
-        pageId={params.pageId}
+        pageId={pageId}
         pageName={pageData.pageName}
       />
     </div>
