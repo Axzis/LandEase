@@ -30,7 +30,7 @@ const componentMap: { [key: string]: React.ComponentType<any> } = {
             <a href={href} className="inline-block bg-primary text-primary-foreground px-4 py-2 rounded-md transition-colors duration-200 hover:bg-primary/90">{text}</a>
         </div>
     )),
-    Image: React.forwardRef<HTMLImageElement, { src: string, alt: string, [key: string]: any }>(({ src, alt, ...rest }, ref) => <img ref={ref} src={src} alt={alt} className="max-w-full h-auto" {...rest} />),
+    Image: React.forwardRef<HTMLImageElement, { src: string, alt: string, width: number, height: number, [key: string]: any }>(({ src, alt, width, height, ...rest }, ref) => <img ref={ref} src={src} alt={alt} style={{ width: `${width}px`, height: `${height}px` }} className="max-w-full" {...rest} />),
     Navbar: React.forwardRef<HTMLElement, { backgroundColor: string, logoText: string, logoImageUrl: string, links: {text: string, href: string}[], [key: string]: any }>(({ backgroundColor, logoText, logoImageUrl, links, ...rest }, ref) => (
         <nav ref={ref} style={{ backgroundColor }} className="p-4" {...rest}>
             <div className="container mx-auto flex justify-between items-center">

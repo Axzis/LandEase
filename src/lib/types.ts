@@ -71,6 +71,8 @@ export interface ImageComponent extends BaseComponent {
   props: {
     src: string;
     alt: string;
+    width: number;
+    height: number;
   };
 }
 

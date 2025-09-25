@@ -60,7 +60,7 @@ const createNewComponent = (type: ComponentType): PageComponent => {
     case 'Button':
       return { id, type: 'Button', props: { text: 'Click Me', href: '#', align: 'left' } };
     case 'Image':
-      return { id, type: 'Image', props: { src: 'https://placehold.co/600x400', alt: 'Placeholder image' } };
+      return { id, type: 'Image', props: { src: 'https://placehold.co/600x400', alt: 'Placeholder image', width: 600, height: 400 } };
     case 'Navbar':
       return { id, type: 'Navbar', props: { backgroundColor: '#FFFFFF', logoText: 'LandEase', logoImageUrl: '', links: [{text: 'Home', href: '#'}, {text: 'About', href: '#'}, {text: 'Contact', href: '#'}] } };
     case 'Footer':
