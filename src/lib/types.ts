@@ -1,3 +1,4 @@
+
 export type ComponentType = 'Section' | 'Heading' | 'Text' | 'Button' | 'Image' | 'Navbar' | 'Footer' | 'Columns';
 
 export interface BaseComponent {
@@ -56,6 +57,7 @@ export interface HeadingComponent extends BaseComponent {
     text: string;
     level: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
     align: 'left' | 'center' | 'right';
+    padding: string;
   };
 }
 
@@ -68,6 +70,7 @@ export interface TextComponent extends BaseComponent {
     fontWeight: 'normal' | 'bold';
     fontStyle: 'normal' | 'italic';
     textDecoration: 'none' | 'line-through';
+    padding: string;
   };
 }
 
@@ -77,6 +80,7 @@ export interface ButtonComponent extends BaseComponent {
     text: string;
     href: string;
     align: 'left' | 'center' | 'right';
+    padding: string;
   };
 }
 
@@ -87,6 +91,7 @@ export interface ImageComponent extends BaseComponent {
     alt: string;
     width: number;
     height: number;
+    padding: string;
   };
 }
 

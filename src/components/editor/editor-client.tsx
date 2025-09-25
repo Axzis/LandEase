@@ -57,13 +57,13 @@ const createNewComponent = (type: ComponentType): PageComponent => {
     case 'Columns':
         return { id, type: 'Columns', props: { numberOfColumns: 2, gap: '16px' }, children: [[], []] };
     case 'Heading':
-      return { id, type: 'Heading', props: { text: 'New Heading', level: 'h2', align: 'left' } };
+      return { id, type: 'Heading', props: { text: 'New Heading', level: 'h2', align: 'left', padding: '0px' } };
     case 'Text':
-      return { id, type: 'Text', props: { text: 'This is a new text block. Click to edit.', align: 'left', fontFamily: 'Inter', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' } };
+      return { id, type: 'Text', props: { text: 'This is a new text block. Click to edit.', align: 'left', fontFamily: 'Inter', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none', padding: '0px' } };
     case 'Button':
-      return { id, type: 'Button', props: { text: 'Click Me', href: '#', align: 'left' } };
+      return { id, type: 'Button', props: { text: 'Click Me', href: '#', align: 'left', padding: '0px' } };
     case 'Image':
-      return { id, type: 'Image', props: { src: 'https://placehold.co/600x400', alt: 'Placeholder image', width: 600, height: 400 } };
+      return { id, type: 'Image', props: { src: 'https://placehold.co/600x400', alt: 'Placeholder image', width: 600, height: 400, padding: '0px' } };
     case 'Navbar':
       return { id, type: 'Navbar', props: { backgroundColor: '#FFFFFF', logoText: 'LandEase', logoImageUrl: '', links: [{text: 'Home', href: '#'}, {text: 'About', href: '#'}, {text: 'Contact', href: '#'}] } };
     case 'Footer':

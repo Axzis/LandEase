@@ -1,9 +1,11 @@
+
 'use client';
 
 import { ImageComponent } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BaseInspector } from './base-inspector';
+import { PaddingInspector } from './padding-inspector';
 
 interface ImageInspectorProps {
   component: ImageComponent;
@@ -54,6 +56,7 @@ export function ImageInspector({ component, onUpdate }: ImageInspectorProps) {
           />
         </div>
       </div>
+      <PaddingInspector component={component} onUpdate={onUpdate} />
     </BaseInspector>
   );
 }

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { TextComponent } from '@/lib/types';
@@ -9,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Bold, Italic, Strikethrough } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { AITextGenerator } from '../ai-text-generator';
+import { PaddingInspector } from './padding-inspector';
 
 interface TextInspectorProps {
   component: TextComponent;
@@ -106,6 +108,7 @@ export function TextInspector({ component, onUpdate }: TextInspectorProps) {
           </SelectContent>
         </Select>
       </div>
+      <PaddingInspector component={component} onUpdate={onUpdate} />
     </BaseInspector>
   );
 }

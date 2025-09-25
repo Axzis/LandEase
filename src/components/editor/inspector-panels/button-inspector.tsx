@@ -1,3 +1,4 @@
+
 'use client';
 
 import { ButtonComponent } from '@/lib/types';
@@ -5,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BaseInspector } from './base-inspector';
+import { PaddingInspector } from './padding-inspector';
 
 interface ButtonInspectorProps {
   component: ButtonComponent;
@@ -48,6 +50,7 @@ export function ButtonInspector({ component, onUpdate }: ButtonInspectorProps) {
           </SelectContent>
         </Select>
       </div>
+      <PaddingInspector component={component} onUpdate={onUpdate} />
     </BaseInspector>
   );
 }

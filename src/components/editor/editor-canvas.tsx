@@ -17,7 +17,7 @@ const componentMap: { [key: string]: React.ComponentType<any> } = {
             {children}
         </div>
     )),
-    Heading: React.forwardRef<HTMLHeadingElement, { level: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6', text: string, align: string, [key: string]: any }>(({ level, text, align, ...rest }, ref) => {
+    Heading: React.forwardRef<HTMLHeadingElement, { level: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6', text: string, align: string, padding: string, [key: string]: any }>(({ level, text, align, padding, ...rest }, ref) => {
         const Tag = level;
         const sizeClasses = {
             h1: 'text-4xl md:text-5xl font-bold',
@@ -27,24 +27,28 @@ const componentMap: { [key: string]: React.ComponentType<any> } = {
             h5: 'text-lg md:text-xl font-medium',
             h6: 'text-base md:text-lg font-medium',
         };
-        return <Tag ref={ref} className={cn('w-full', sizeClasses[level], {'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })} {...rest}>{text}</Tag>;
+        return <Tag ref={ref} className={cn('w-full', sizeClasses[level], {'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })} style={{ padding }} {...rest}>{text}</Tag>;
     }),
-    Text: React.forwardRef<HTMLParagraphElement, { text: string, align: string, fontFamily: string, fontWeight: string, fontStyle: string, textDecoration: string, [key: string]: any }>(({ text, align, fontFamily, fontWeight, fontStyle, textDecoration, ...rest }, ref) => (
+    Text: React.forwardRef<HTMLParagraphElement, { text: string, align: string, fontFamily: string, fontWeight: string, fontStyle: string, textDecoration: string, padding: string, [key: string]: any }>(({ text, align, fontFamily, fontWeight, fontStyle, textDecoration, padding, ...rest }, ref) => (
         <p 
             ref={ref}
             className={cn('w-full', {'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })}
-            style={{ fontFamily, fontWeight, fontStyle, textDecoration }}
+            style={{ fontFamily, fontWeight, fontStyle, textDecoration, padding }}
             {...rest}
         >
             {text}
         </p>
     )),
-    Button: React.forwardRef<HTMLDivElement, { text: string, href: string, align: string, [key: string]: any }>(({ text, href, align, ...rest }, ref) => (
-        <div ref={ref} className={cn('w-full', { 'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })} {...rest}>
+    Button: React.forwardRef<HTMLDivElement, { text: string, href: string, align: string, padding: string, [key: string]: any }>(({ text, href, align, padding, ...rest }, ref) => (
+        <div ref={ref} className={cn('w-full', { 'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })} style={{ padding }} {...rest}>
             <a href={href} className="inline-block bg-primary text-primary-foreground px-4 py-2 rounded-md transition-colors duration-200 hover:bg-primary/90">{text}</a>
         </div>
     )),
-    Image: React.forwardRef<HTMLImageElement, { src: string, alt: string, width: number, height: number, [key: string]: any }>(({ src, alt, width, height, ...rest }, ref) => <img ref={ref} src={src} alt={alt} style={{ width: `${width}px`, height: `${height}px` }} className="max-w-full" {...rest} />),
+    Image: React.forwardRef<HTMLImageElement, { src: string, alt: string, width: number, height: number, padding: string, [key: string]: any }>(({ src, alt, width, height, padding, ...rest }, ref) => (
+        <div ref={ref} style={{ padding }} {...rest}>
+            <img src={src} alt={alt} style={{ width: `${width}px`, height: `${height}px` }} className="max-w-full" />
+        </div>
+    )),
     Navbar: React.forwardRef<HTMLElement, { backgroundColor: string, logoText: string, logoImageUrl: string, links: {text: string, href: string}[], [key: string]: any }>(({ backgroundColor, logoText, logoImageUrl, links, ...rest }, ref) => (
         <nav ref={ref} style={{ backgroundColor }} className="p-4" {...rest}>
             <div className="container mx-auto flex justify-between items-center">

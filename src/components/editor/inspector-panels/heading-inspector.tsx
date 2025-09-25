@@ -1,3 +1,4 @@
+
 'use client';
 
 import { HeadingComponent } from '@/lib/types';
@@ -7,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { BaseInspector } from './base-inspector';
 import { AIHeadlineGenerator } from '../ai-headline-generator';
 import { Separator } from '@/components/ui/separator';
+import { PaddingInspector } from './padding-inspector';
 
 interface HeadingInspectorProps {
   component: HeadingComponent;
@@ -67,6 +69,7 @@ export function HeadingInspector({ component, onUpdate }: HeadingInspectorProps)
           </SelectContent>
         </Select>
       </div>
+      <PaddingInspector component={component} onUpdate={onUpdate} />
     </BaseInspector>
   );
 }
