@@ -1,55 +1,45 @@
+'use client';
+
 import { EditorCanvas } from "@/components/editor/editor-canvas";
-import { initializeFirebaseServer } from "@/firebase/server-init";
-import { doc, getDoc } from "firebase/firestore";
-import type { Metadata } from 'next'
-import { FirestorePermissionError } from "@/firebase/errors";
+import { useDoc, useFirestore, useUser, useMemoFirebase } from "@/firebase";
+import { doc } from "firebase/firestore";
+import { usePathname } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
-async function getPageData(pageId: string) {
-    const { firestore } = initializeFirebaseServer();
-    const pageDocRef = doc(firestore, "pages", pageId);
+export default function PublicPage() {
+    const pathname = usePathname();
+    const pageId = pathname.split('/').pop() || '';
     
-    try {
-        const pageDoc = await getDoc(pageDocRef);
-        if (pageDoc.exists()) {
-          const data = pageDoc.data();
-          // Only return data if the page is published
-          if (data.published) {
-            return { id: pageDoc.id, ...data };
-          }
-        }
-        return null;
-    } catch (error: any) {
-        if (error.code === 'permission-denied') {
-            const permissionError = new FirestorePermissionError({
-                path: pageDocRef.path,
-                operation: 'get',
-            });
-            throw permissionError;
-        }
-        throw error;
+    const { user, loading: userLoading } = useUser();
+    const firestore = useFirestore();
+
+    const pageDocRef = useMemoFirebase(() => {
+        if (!firestore || !pageId) return null;
+        return doc(firestore, "pages", pageId);
+    }, [firestore, pageId]);
+
+    const { data: pageData, isLoading: pageLoading, error } = useDoc(pageDocRef);
+
+    if (userLoading || pageLoading) {
+        return (
+            <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
     }
-}
-
-export async function generateMetadata({ params }: { params: { pageId: string } }): Promise<Metadata> {
-  const pageData = await getPageData(params.pageId);
- 
-  if (!pageData) {
-    return {
-      title: 'Page Not Found',
+    
+    if (error) {
+         return (
+            <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
+                <div className="text-center">
+                    <h1 className="text-4xl font-bold">Error</h1>
+                    <p className="text-lg text-muted-foreground">Could not load page. You may not have permission.</p>
+                </div>
+            </div>
+        )
     }
-  }
- 
-  return {
-    title: pageData.pageName || 'Untitled Page',
-    // You can add more metadata here like description, open graph images, etc.
-    description: `A page created with LandEase.`,
-  }
-}
 
-export default async function PublicPage({ params }: { params: { pageId:string } }) {
-    const pageData = await getPageData(params.pageId);
-
-    if (!pageData) {
+    if (!pageData || !pageData.published) {
         return (
             <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
                 <div className="text-center">
@@ -65,7 +55,7 @@ export default async function PublicPage({ params }: { params: { pageId:string }
              <EditorCanvas 
                 content={pageData.content} 
                 readOnly 
-                pageId={params.pageId}
+                pageId={pageId}
                 pageName={pageData.pageName}
             />
         </div>
