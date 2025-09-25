@@ -33,7 +33,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { updatePublishedPage } from '@/lib/published-pages-server';
 
 interface EditorClientProps {
   pageId: string;
@@ -393,34 +392,11 @@ export function EditorClient({ pageId }: EditorClientProps) {
     };
 
     try {
-      // Save to Firestore
       await setDoc(pageDocRef, dataToSave, { merge: true });
-
-      // After successful Firestore save, update the static JSON file
-      startTransition(async () => {
-        try {
-          const pageDataForJson = {
-            pageName,
-            content,
-            pageBackgroundColor,
-          };
-          // If published, write to file. If not, send null to remove from file.
-          await updatePublishedPage(pageId, publishedState ? pageDataForJson : null);
-
-          toast({
-            title: 'Page Saved Successfully!',
-            description: 'Your changes have been saved and published status updated.',
-          });
-        } catch (serverActionError) {
-           console.error("Error updating published page file: ", serverActionError);
-           toast({
-              variant: 'destructive',
-              title: 'Publishing Failed',
-              description: 'Changes were saved, but could not update the public page.',
-           });
-        }
+      toast({
+        title: 'Page Saved!',
+        description: 'Your changes have been saved.',
       });
-      
       setIsDirty(false);
     } catch (error) {
       console.error("Error saving page to Firestore: ", error);
@@ -438,6 +414,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
   const handlePublishToggle = (published: boolean) => {
     setIsPublished(published);
     setIsDirty(true);
+    // The save action will now handle the `published` state
     startTransition(() => {
         handleSave(published).then(() => {
             toast({
