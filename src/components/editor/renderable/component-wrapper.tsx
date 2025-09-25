@@ -76,15 +76,27 @@ export function ComponentWrapper({
     e.stopPropagation();
     setIsDraggedOver(true);
     
-    const isContainer = type === 'Section' || type === 'Columns';
-    if (isContainer) {
-        setDropPosition(null);
-        return;
-    }
-
     const rect = e.currentTarget.getBoundingClientRect();
     const midpoint = rect.top + rect.height / 2;
-    setDropPosition(e.clientY < midpoint ? 'top' : 'bottom');
+    const position = e.clientY < midpoint ? 'top' : 'bottom';
+    setDropPosition(position);
+
+    const isContainer = type === 'Section' || type === 'Columns';
+    if (isContainer) {
+      // If dragging over a container, decide whether to drop inside or outside based on proximity to edge.
+      const edgeThreshold = 20; // 20px from top or bottom edge
+      if (e.clientY < rect.top + edgeThreshold) {
+        setDropPosition('top');
+      } else if (e.clientY > rect.bottom - edgeThreshold) {
+        setDropPosition('bottom');
+      } else {
+        // Drop is inside the container, not above or below it.
+        // We'll reset the drop position and show a different visual indicator.
+        setDropPosition(null);
+      }
+    } else {
+      setDropPosition(position);
+    }
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
@@ -105,15 +117,19 @@ export function ComponentWrapper({
       
       const isContainer = type === 'Section' || type === 'Columns';
       
-      let targetId = isContainer ? null : id;
-      let effectiveParentId = isContainer ? id : parentId;
+      // If dropPosition is null, it means we're dropping *inside* a container
+      const dropInsideContainer = isContainer && dropPosition === null;
+
+      let targetId = dropInsideContainer ? null : id;
+      let effectiveParentId = dropInsideContainer ? id : parentId;
       let effectiveColumnIndex = columnIndex;
+      let effectiveDropPosition = dropPosition || 'bottom';
 
       if (data.type === 'new-component') {
-        onAddComponent(data.componentType, effectiveParentId, targetId, dropPosition || 'bottom', effectiveColumnIndex);
+        onAddComponent(data.componentType, effectiveParentId, targetId, effectiveDropPosition, effectiveColumnIndex);
       } else if (data.type === 'move-component') {
         const draggedId = data.componentId;
-        onMoveComponent(draggedId, targetId, effectiveParentId, dropPosition || 'bottom', effectiveColumnIndex);
+        onMoveComponent(draggedId, targetId, effectiveParentId, effectiveDropPosition, effectiveColumnIndex);
       }
     } catch (err) {
         console.error("Invalid drop data", err);
@@ -132,12 +148,12 @@ export function ComponentWrapper({
         'relative p-1 my-1 transition-all duration-200 group',
         { 'ring-2 ring-primary ring-offset-2 rounded-md': isSelected },
         { 'hover:ring-2 hover:ring-primary/50 rounded-md': !isSelected },
-        { 'bg-primary/10': isDraggedOver && (type === 'Section' || type === 'Columns') }
+        { 'bg-primary/10': isDraggedOver && (type === 'Section' || type === 'Columns') && dropPosition === null }
       )}
       data-component-id={id}
       data-component-type={type}
     >
-      {isDraggedOver && type !== 'Section' && type !== 'Columns' && (
+      {isDraggedOver && dropPosition && (
          <div className={cn(
             'absolute left-0 right-0 h-1 bg-primary z-20 pointer-events-none',
             dropPosition === 'top' ? '-top-1' : '-bottom-1'
@@ -154,7 +170,7 @@ export function ComponentWrapper({
           </Button>
         </div>
       )}
-      <div className={cn(isDraggedOver && 'opacity-50')}>
+      <div className={cn({ 'opacity-50': isDraggedOver && dropPosition !== null })}>
         {children}
       </div>
     </div>
