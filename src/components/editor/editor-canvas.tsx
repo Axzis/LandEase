@@ -97,15 +97,21 @@ const PublicForm = ({ pageId, pageName, ...props }: { pageId: string, pageName: 
 
 // A map to dynamically render components based on their type
 const componentMap: { [key: string]: React.ComponentType<any> } = {
-    Section: React.forwardRef<HTMLElement, { backgroundColor: string, padding: string, display: string, flexDirection: string, alignItems: string, justifyContent: string, gap: string, [key: string]: any }>(({ backgroundColor, padding, display, flexDirection, alignItems, justifyContent, gap, ...rest }, ref) => (
-        <section ref={ref} style={{ backgroundColor, padding, display, flexDirection, alignItems, justifyContent, gap }} {...rest} />
-    )),
-    Columns: React.forwardRef<HTMLDivElement, { numberOfColumns: number, gap: string, children: React.ReactNode, [key: string]: any }>(({ numberOfColumns, gap, children, ...rest }, ref) => (
-        <div ref={ref} style={{ display: 'grid', gridTemplateColumns: `repeat(${numberOfColumns}, 1fr)`, gap }} {...rest}>
-            {children}
-        </div>
-    )),
+    Section: React.forwardRef<HTMLElement, { backgroundColor: string, padding: string, display: string, flexDirection: string, alignItems: string, justifyContent: string, gap: string, children: React.ReactNode, [key: string]: any }>(({ backgroundColor, padding, display, flexDirection, alignItems, justifyContent, gap, children, ...rest }, ref) => {
+        // Filter out props that are not valid for the DOM element
+        const { readOnly, pageId, pageName, ...domRest } = rest;
+        return <section ref={ref} style={{ backgroundColor, padding, display, flexDirection, alignItems, justifyContent, gap }} {...domRest}>{children}</section>;
+    }),
+    Columns: React.forwardRef<HTMLDivElement, { numberOfColumns: number, gap: string, children: React.ReactNode, [key: string]: any }>(({ numberOfColumns, gap, children, ...rest }, ref) => {
+        const { readOnly, pageId, pageName, ...domRest } = rest;
+        return (
+            <div ref={ref} style={{ display: 'grid', gridTemplateColumns: `repeat(${numberOfColumns}, 1fr)`, gap }} {...domRest}>
+                {children}
+            </div>
+        );
+    }),
     Heading: React.forwardRef<HTMLHeadingElement, { level: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6', text: string, align: string, padding: string, [key: string]: any }>(({ level, text, align, padding, ...rest }, ref) => {
+        const { readOnly, pageId, pageName, ...domRest } = rest;
         const Tag = level;
         const sizeClasses = {
             h1: 'text-4xl md:text-5xl font-bold',
@@ -115,58 +121,74 @@ const componentMap: { [key: string]: React.ComponentType<any> } = {
             h5: 'text-lg md:text-xl font-medium',
             h6: 'text-base md:text-lg font-medium',
         };
-        return <Tag ref={ref} className={cn('w-full', sizeClasses[level], {'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })} style={{ padding }} {...rest}>{text}</Tag>;
+        return <Tag ref={ref} className={cn('w-full', sizeClasses[level], {'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })} style={{ padding }} {...domRest}>{text}</Tag>;
     }),
-    Text: React.forwardRef<HTMLParagraphElement, { text: string, align: string, fontFamily: string, fontWeight: string, fontStyle: string, textDecoration: string, padding: string, [key: string]: any }>(({ text, align, fontFamily, fontWeight, fontStyle, textDecoration, padding, ...rest }, ref) => (
-        <p 
-            ref={ref}
-            className={cn('w-full', {'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })}
-            style={{ fontFamily, fontWeight, fontStyle, textDecoration, padding }}
-            {...rest}
-        >
-            {text}
-        </p>
-    )),
-    Button: React.forwardRef<HTMLDivElement, { text: string, href: string, align: string, padding: string, [key: string]: any }>(({ text, href, align, padding, ...rest }, ref) => (
-        <div ref={ref} className={cn('w-full', { 'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })} style={{ padding }} {...rest}>
-            <a href={href} className="inline-block bg-primary text-primary-foreground px-4 py-2 rounded-md transition-colors duration-200 hover:bg-primary/90">{text}</a>
-        </div>
-    )),
-    Image: React.forwardRef<HTMLImageElement, { src: string, alt: string, width: number, height: number, padding: string, [key: string]: any }>(({ src, alt, width, height, padding, ...rest }, ref) => (
-        <div ref={ref} style={{ padding }} {...rest}>
-            <img src={src} alt={alt} style={{ width: `${width}px`, height: `${height}px` }} className="max-w-full" />
-        </div>
-    )),
-    Navbar: React.forwardRef<HTMLElement, { backgroundColor: string, logoText: string, logoImageUrl: string, links: {text: string, href: string}[], [key: string]: any }>(({ backgroundColor, logoText, logoImageUrl, links, ...rest }, ref) => (
-        <nav ref={ref} style={{ backgroundColor }} className="p-4" {...rest}>
-            <div className="container mx-auto flex justify-between items-center">
-                <a href="#" className="flex items-center gap-2 text-xl font-bold">
-                    {logoImageUrl ? (
-                        <img src={logoImageUrl} alt={logoText} className="h-8" />
-                    ) : (
-                        <Rocket className="w-6 h-6 text-primary" />
-                    )}
-                    <span>{logoText}</span>
-                </a>
-                <div className="hidden md:flex items-center space-x-6">
-                    {(links || []).map((link, index) => (
-                        <a key={index} href={link.href} className="hover:text-primary">{link.text}</a>
-                    ))}
+    Text: React.forwardRef<HTMLParagraphElement, { text: string, align: string, fontFamily: string, fontWeight: string, fontStyle: string, textDecoration: string, padding: string, [key: string]: any }>(({ text, align, fontFamily, fontWeight, fontStyle, textDecoration, padding, ...rest }, ref) => {
+        const { readOnly, pageId, pageName, ...domRest } = rest;
+        return (
+            <p 
+                ref={ref}
+                className={cn('w-full', {'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })}
+                style={{ fontFamily, fontWeight, fontStyle, textDecoration, padding }}
+                {...domRest}
+            >
+                {text}
+            </p>
+        );
+    }),
+    Button: React.forwardRef<HTMLDivElement, { text: string, href: string, align: string, padding: string, [key: string]: any }>(({ text, href, align, padding, ...rest }, ref) => {
+        const { readOnly, pageId, pageName, ...domRest } = rest;
+        return (
+            <div ref={ref} className={cn('w-full', { 'text-left': align === 'left', 'text-center': align === 'center', 'text-right': align === 'right' })} style={{ padding }} {...domRest}>
+                <a href={href} className="inline-block bg-primary text-primary-foreground px-4 py-2 rounded-md transition-colors duration-200 hover:bg-primary/90">{text}</a>
+            </div>
+        );
+    }),
+    Image: React.forwardRef<HTMLDivElement, { src: string, alt: string, width: number, height: number, padding: string, [key: string]: any }>(({ src, alt, width, height, padding, ...rest }, ref) => {
+        const { readOnly, pageId, pageName, ...domRest } = rest;
+        return (
+            <div ref={ref} style={{ padding }} {...domRest}>
+                <img src={src} alt={alt} style={{ width: `${width}px`, height: `${height}px` }} className="max-w-full" />
+            </div>
+        );
+    }),
+    Navbar: React.forwardRef<HTMLElement, { backgroundColor: string, logoText: string, logoImageUrl: string, links: {text: string, href: string}[], [key: string]: any }>(({ backgroundColor, logoText, logoImageUrl, links, ...rest }, ref) => {
+        const { readOnly, pageId, pageName, ...domRest } = rest;
+        return (
+            <nav ref={ref} style={{ backgroundColor }} className="p-4" {...domRest}>
+                <div className="container mx-auto flex justify-between items-center">
+                    <a href="#" className="flex items-center gap-2 text-xl font-bold">
+                        {logoImageUrl ? (
+                            <img src={logoImageUrl} alt={logoText} className="h-8" />
+                        ) : (
+                            <Rocket className="w-6 h-6 text-primary" />
+                        )}
+                        <span>{logoText}</span>
+                    </a>
+                    <div className="hidden md:flex items-center space-x-6">
+                        {(links || []).map((link, index) => (
+                            <a key={index} href={link.href} className="hover:text-primary">{link.text}</a>
+                        ))}
+                    </div>
                 </div>
-            </div>
-        </nav>
-    )),
-    Footer: React.forwardRef<HTMLElement, { backgroundColor: string, copyrightText: string, [key: string]: any }>(({ backgroundColor, copyrightText, ...rest }, ref) => (
-        <footer ref={ref} style={{ backgroundColor }} className="p-8 text-gray-300" {...rest}>
-            <div className="container mx-auto text-center">
-                <p>{copyrightText}</p>
-            </div>
-        </footer>
-    )),
+            </nav>
+        );
+    }),
+    Footer: React.forwardRef<HTMLElement, { backgroundColor: string, copyrightText: string, [key: string]: any }>(({ backgroundColor, copyrightText, ...rest }, ref) => {
+        const { readOnly, pageId, pageName, ...domRest } = rest;
+        return (
+            <footer ref={ref} style={{ backgroundColor }} className="p-8 text-gray-300" {...domRest}>
+                <div className="container mx-auto text-center">
+                    <p>{copyrightText}</p>
+                </div>
+            </footer>
+        );
+    }),
     Video: React.forwardRef<HTMLDivElement, { src: string, padding: string, [key: string]: any }>(({ src, padding, ...rest }, ref) => {
+        const { readOnly, pageId, pageName, ...domRest } = rest;
         const embedUrl = getEmbedUrl(src);
         return (
-            <div ref={ref} style={{ padding }} {...rest}>
+            <div ref={ref} style={{ padding }} {...domRest}>
                 {embedUrl ? (
                      <div className="aspect-w-16 aspect-h-9">
                         <iframe
@@ -188,8 +210,9 @@ const componentMap: { [key: string]: React.ComponentType<any> } = {
         )
     }),
     Form: React.forwardRef<HTMLDivElement, { pageId?: string, pageName?: string, title: string, description: string, buttonText: string, padding: string, readOnly?: boolean, [key: string]: any }>(({ padding, readOnly, pageId, pageName, ...rest }, ref) => {
+        const { ...domRest } = rest;
         return (
-            <div ref={ref} style={{ padding }} {...rest} className="w-full flex justify-center">
+            <div ref={ref} style={{ padding }} {...domRest} className="w-full flex justify-center">
                 {readOnly ? (
                     <PublicForm pageId={pageId!} pageName={pageName!} {...rest} />
                 ) : (
@@ -279,15 +302,14 @@ function RenderComponent({
 
   const componentProps = {
     ...component.props,
+    children: childrenToRender,
     readOnly,
     pageId,
     pageName
   };
 
   const componentContent = (
-    <Component {...componentProps}>
-        {childrenToRender}
-    </Component>
+    <Component {...componentProps} />
   );
 
   if (readOnly) {
