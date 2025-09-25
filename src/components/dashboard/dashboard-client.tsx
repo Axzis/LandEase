@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, doc } from 'firebase/firestore';
-import { useAuth, useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useState, useMemo } from 'react';
+import { collection, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useAuth, useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
@@ -28,38 +28,14 @@ export function DashboardClient() {
   const auth = useAuth();
   const firestore = useFirestore();
 
-  const [pages, setPages] = useState<Page[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isCreatingPage, setIsCreatingPage] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      fetchPages();
-    }
-  }, [user]);
+  const pagesQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'pages'), where('userId', '==', user.uid));
+  }, [firestore, user]);
 
-  const fetchPages = async () => {
-    if (!user) return;
-    setIsLoading(true);
-    try {
-      const q = query(collection(firestore, 'pages'), where('userId', '==', user.uid));
-      const querySnapshot = await getDocs(q);
-      const userPages = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Page[];
-      setPages(userPages);
-    } catch (error) {
-        // Since useCollection is not used here, we manually create and emit the error.
-        const permissionError = new FirestorePermissionError({
-            path: 'pages', // The query is on the 'pages' collection
-            operation: 'list',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { data: pages, isLoading, error } = useCollection<Page>(pagesQuery);
 
   const handleCreatePage = async () => {
     if (!user || !firestore) return;
@@ -75,22 +51,16 @@ export function DashboardClient() {
       published: false,
     };
 
-    addDoc(pagesCollectionRef, newPageData)
-      .then((docRef) => {
+    try {
+        const docRef = await addDoc(pagesCollectionRef, newPageData);
         toast({ title: "Page created!", description: "Redirecting to the editor..." });
         router.push(`/editor/${docRef.id}`);
-      })
-      .catch((error) => {
-        const permissionError = new FirestorePermissionError({
-            path: pagesCollectionRef.path,
-            operation: 'create',
-            requestResourceData: newPageData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      })
-      .finally(() => {
+    } catch(e) {
+        console.error("Error creating page", e);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not create a new page. Please check permissions and try again.'});
+    } finally {
         setIsCreatingPage(false);
-      });
+    }
   };
 
   const handleSignOut = async () => {
@@ -135,7 +105,12 @@ export function DashboardClient() {
 
         {isLoading ? (
           <PageGridSkeleton />
-        ) : pages.length > 0 ? (
+        ) : error ? (
+           <div className="text-center py-20 px-4 border-2 border-dashed rounded-lg border-destructive/50 bg-destructive/10">
+              <h2 className="text-2xl font-semibold text-destructive-foreground">Error Loading Pages</h2>
+              <p className="mt-2 text-destructive-foreground/80">Could not load your pages due to an error: {error.message}</p>
+            </div>
+        ) : pages && pages.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {pages.map(page => (
               <PageCard key={page.id} page={page} />
