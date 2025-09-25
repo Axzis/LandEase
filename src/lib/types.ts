@@ -1,6 +1,6 @@
 
 
-export type ComponentType = 'Section' | 'Heading' | 'Text' | 'Button' | 'Image' | 'Navbar' | 'Footer' | 'Columns' | 'Video';
+export type ComponentType = 'Section' | 'Heading' | 'Text' | 'Button' | 'Image' | 'Navbar' | 'Footer' | 'Columns' | 'Video' | 'Form';
 
 export interface BaseComponent {
   id: string;
@@ -104,7 +104,17 @@ export interface VideoComponent extends BaseComponent {
   };
 }
 
+export interface FormComponent extends BaseComponent {
+  type: 'Form';
+  props: {
+    title: string;
+    description: string;
+    buttonText: string;
+    padding: string;
+  };
+}
 
-export type PageComponent = SectionComponent | HeadingComponent | TextComponent | ButtonComponent | ImageComponent | NavbarComponent | FooterComponent | ColumnsComponent | VideoComponent;
+
+export type PageComponent = SectionComponent | HeadingComponent | TextComponent | ButtonComponent | ImageComponent | NavbarComponent | FooterComponent | ColumnsComponent | VideoComponent | FormComponent;
 
 export type PageContent = PageComponent[];

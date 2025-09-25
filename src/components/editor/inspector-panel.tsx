@@ -11,6 +11,7 @@ import { NavbarInspector } from './inspector-panels/navbar-inspector';
 import { FooterInspector } from './inspector-panels/footer-inspector';
 import { ColumnsInspector } from './inspector-panels/columns-inspector';
 import { VideoInspector } from './inspector-panels/video-inspector';
+import { FormInspector } from './inspector-panels/form-inspector';
 
 interface InspectorPanelProps {
   selectedComponent: PageComponent | null;
@@ -30,6 +31,7 @@ const inspectorMap = {
   Footer: FooterInspector,
   Columns: ColumnsInspector,
   Video: VideoInspector,
+  Form: FormInspector,
 };
 
 export function InspectorPanel({ selectedComponent, onUpdateComponent, pageBackgroundColor, onUpdatePageBackgroundColor }: InspectorPanelProps) {

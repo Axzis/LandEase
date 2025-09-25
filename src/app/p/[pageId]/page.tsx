@@ -52,7 +52,12 @@ export default async function PublicPage({ params }: { params: { pageId:string }
 
     return (
         <div style={{ backgroundColor: pageData.pageBackgroundColor || '#FFFFFF' }}>
-             <EditorCanvas content={pageData.content} readOnly />
+             <EditorCanvas 
+                content={pageData.content} 
+                readOnly 
+                pageId={params.pageId}
+                pageName={pageData.pageName}
+            />
         </div>
     )
 }

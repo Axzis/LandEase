@@ -5,8 +5,16 @@
 import { PageContent, PageComponent, ComponentType } from '@/lib/types';
 import { ComponentWrapper } from './renderable/component-wrapper';
 import { cn } from '@/lib/utils';
-import React from 'react';
+import React, { useState } from 'react';
 import { Rocket } from 'lucide-react';
+import { db } from '@/lib/firebase';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { useAuth } from '@/hooks/use-auth';
+import { Button as UIButton } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 
 const getEmbedUrl = (url: string): string | null => {
     let videoId;
@@ -29,6 +37,63 @@ const getEmbedUrl = (url: string): string | null => {
     return null;
 }
 
+const PublicForm = ({ pageId, pageName, ...props }: { pageId: string, pageName: string, title: string, description: string, buttonText: string }) => {
+    const { user } = useAuth(); // Assume this hook gives the logged in user for ownership. A real app might not have this for public forms.
+    const [email, setEmail] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const { toast } = useToast();
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!pageId || !user?.uid) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Cannot submit form. Page or user information is missing.' });
+            return;
+        }
+        
+        setIsLoading(true);
+
+        try {
+            await addDoc(collection(db, `users/${user.uid}/submissions`), {
+                pageId: pageId,
+                pageName: pageName,
+                formData: { email },
+                submittedAt: serverTimestamp(),
+            });
+            toast({ title: 'Success!', description: 'Your submission has been received.'});
+            setEmail('');
+        } catch (error) {
+            console.error("Error submitting form:", error);
+            toast({ variant: 'destructive', title: 'Submission Error', description: 'Could not submit your response. Please try again.' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="w-full max-w-md mx-auto bg-card p-8 rounded-lg shadow-md border">
+            <h3 className="text-2xl font-bold mb-2 text-card-foreground">{props.title}</h3>
+            <p className="text-muted-foreground mb-6">{props.description}</p>
+            <div className="space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor="email" className="text-card-foreground">Email</Label>
+                    <Input 
+                        id="email"
+                        type="email"
+                        placeholder="you@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        className="bg-background"
+                    />
+                </div>
+                <UIButton type="submit" className="w-full" disabled={isLoading}>
+                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {props.buttonText}
+                </UIButton>
+            </div>
+        </form>
+    )
+}
 
 // A map to dynamically render components based on their type
 const componentMap: { [key: string]: React.ComponentType<any> } = {
@@ -122,6 +187,27 @@ const componentMap: { [key: string]: React.ComponentType<any> } = {
             </div>
         )
     }),
+    Form: React.forwardRef<HTMLDivElement, { pageId?: string, pageName?: string, title: string, description: string, buttonText: string, padding: string, readOnly?: boolean, [key: string]: any }>(({ padding, readOnly, pageId, pageName, ...rest }, ref) => {
+        return (
+            <div ref={ref} style={{ padding }} {...rest} className="w-full flex justify-center">
+                {readOnly ? (
+                    <PublicForm pageId={pageId!} pageName={pageName!} {...rest} />
+                ) : (
+                    <div className="w-full max-w-md mx-auto bg-card p-8 rounded-lg shadow-md border pointer-events-none">
+                        <h3 className="text-2xl font-bold mb-2 text-card-foreground">{rest.title}</h3>
+                        <p className="text-muted-foreground mb-6">{rest.description}</p>
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="email-preview" className="text-card-foreground">Email</Label>
+                                <Input id="email-preview" type="email" placeholder="you@example.com" disabled className="bg-background"/>
+                            </div>
+                            <UIButton type="button" className="w-full" disabled>{rest.buttonText}</UIButton>
+                        </div>
+                    </div>
+                )}
+            </div>
+        )
+    }),
 };
 
 
@@ -134,6 +220,8 @@ function RenderComponent({
     onMoveComponent,
     readOnly = false,
     parentPath = '',
+    pageId,
+    pageName
 }: { 
     component: PageComponent, 
     onSelectComponent?: (id: string, path: string) => void,
@@ -143,6 +231,8 @@ function RenderComponent({
     onMoveComponent?: (draggedId: string, targetId: string | null, parentId: string | null, position: 'top' | 'bottom', columnIndex?: number) => void;
     readOnly?: boolean;
     parentPath?: string;
+    pageId?: string;
+    pageName?: string;
 }) {
   const Component = componentMap[component.type];
   if (!Component) return <div>Unknown component type: {component.type}</div>;
@@ -165,6 +255,8 @@ function RenderComponent({
             onAddComponent={onAddComponent}
             onMoveComponent={onMoveComponent}
             readOnly={readOnly}
+            pageId={pageId}
+            pageName={pageName}
         />
     ));
   } else if (component.type === 'Section' && Array.isArray(component.children)) {
@@ -179,12 +271,21 @@ function RenderComponent({
           onMoveComponent={onMoveComponent}
           readOnly={readOnly}
           parentPath={currentPath}
+          pageId={pageId}
+          pageName={pageName}
         />
       ));
   }
 
+  const componentProps = {
+    ...component.props,
+    readOnly,
+    pageId,
+    pageName
+  };
+
   const componentContent = (
-    <Component {...component.props}>
+    <Component {...componentProps}>
         {childrenToRender}
     </Component>
   );
@@ -260,6 +361,8 @@ interface EditorCanvasProps {
     onAddComponent?: (type: ComponentType, parentId: string | null, targetId: string | null, position: 'top' | 'bottom', columnIndex?: number) => void;
     onMoveComponent?: (draggedId: string, targetId: string | null, parentId: string | null, position: 'top' | 'bottom', columnIndex?: number) => void;
     readOnly?: boolean;
+    pageId?: string;
+    pageName?: string;
   }
 
 export function EditorCanvas({
@@ -270,6 +373,8 @@ export function EditorCanvas({
   onAddComponent,
   onMoveComponent,
   readOnly = false,
+  pageId,
+  pageName,
 }: EditorCanvasProps) {
   return (
     <>
@@ -283,6 +388,8 @@ export function EditorCanvas({
           onAddComponent={onAddComponent}
           onMoveComponent={onMoveComponent}
           readOnly={readOnly}
+          pageId={pageId}
+          pageName={pageName}
         />
       ))}
     </>

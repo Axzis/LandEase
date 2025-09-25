@@ -10,30 +10,30 @@
           "type": "string",
           "description": "Unique identifier for the submission."
         },
+        "pageId": {
+          "type": "string",
+          "description": "The ID of the page where the form was submitted."
+        },
         "pageName": {
           "type": "string",
-          "description": "The name of the page where the form was submitted.  Used to categorize submissions."
+          "description": "The name of the page where the form was submitted. Used to categorize submissions."
         },
-        "submittedData": {
-          "type": "string",
-          "description": "JSON string containing the submitted form data."
+        "formData": {
+          "type": "object",
+          "description": "Object containing the submitted form data."
         },
-        "submissionDate": {
+        "submittedAt": {
           "type": "string",
           "description": "The date and time when the form was submitted.",
           "format": "date-time"
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Submission)"
         }
       },
       "required": [
         "id",
+        "pageId",
         "pageName",
-        "submittedData",
-        "submissionDate",
-        "userId"
+        "formData",
+        "submittedAt"
       ]
     },
     "User": {
@@ -89,11 +89,11 @@
           "schema": {
             "$ref": "#/backend/entities/Submission"
           },
-          "description": "Stores form submissions, with a pageName field, for categorization.  Each submission is associated with a specific user. Authorization Independence is achieved through path-based ownership.",
+          "description": "Stores form submissions for a specific user. Each submission is associated with a page.",
           "params": [
             {
               "name": "userId",
-              "description": "The unique ID of the user who submitted the form."
+              "description": "The unique ID of the user who owns the page and submissions."
             },
             {
               "name": "submissionId",
@@ -102,7 +102,6 @@
           ]
         }
       }
-    ],
-    "reasoning": "The Firestore data structure is designed to store form submissions associated with different pages, ensuring data isolation and easy retrieval based on the page name. User data is stored separately. The structure prioritizes Authorization Independence by storing all submissions under a user-specific path, making security rules straightforward and efficient, based solely on `request.auth.uid`. This approach enables the required QAPs by securing access to submissions based on user ownership and allowing efficient querying for submissions associated with a given page. The design employs Structural Segregation by separating user data from submission data and organizing submissions under user-specific collections. Data clarity is maintained through explicit field names and the use of standard data types."
+    ]
   }
 }

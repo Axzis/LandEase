@@ -70,6 +70,8 @@ const createNewComponent = (type: ComponentType): PageComponent => {
       return { id, type: 'Footer', props: { backgroundColor: '#1F2937', copyrightText: `© ${new Date().getFullYear()} Your Company. All rights reserved.` } };
     case 'Video':
       return { id, type: 'Video', props: { src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', padding: '0px' } };
+    case 'Form':
+      return { id, type: 'Form', props: { title: 'Contact Us', description: 'Fill out the form below and we will get back to you.', buttonText: 'Submit', padding: '16px' } };
     default:
       throw new Error(`Unknown component type: ${type}`);
   }
