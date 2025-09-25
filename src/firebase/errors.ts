@@ -1,4 +1,4 @@
-'use client';
+
 import { getAuth, type User } from 'firebase/auth';
 
 type SecurityRuleContext = {
@@ -36,6 +36,7 @@ interface SecurityRuleRequest {
 
 /**
  * Builds a security-rule-compliant auth object from the Firebase User.
+ * This should only be called on the client where the auth state is available.
  * @param currentUser The currently authenticated Firebase user.
  * @returns An object that mirrors request.auth in security rules, or null.
  */
@@ -70,22 +71,24 @@ function buildAuthObject(currentUser: User | null): FirebaseAuthObject | null {
 
 /**
  * Builds the complete, simulated request object for the error message.
- * It safely tries to get the current authenticated user.
+ * It safely tries to get the current authenticated user only if on the client.
  * @param context The context of the failed Firestore operation.
  * @returns A structured request object.
  */
 function buildRequestObject(context: SecurityRuleContext): SecurityRuleRequest {
   let authObject: FirebaseAuthObject | null = null;
-  try {
-    // Safely attempt to get the current user.
-    const firebaseAuth = getAuth();
-    const currentUser = firebaseAuth.currentUser;
-    if (currentUser) {
-      authObject = buildAuthObject(currentUser);
-    }
-  } catch {
-    // This will catch errors if the Firebase app is not yet initialized.
-    // In this case, we'll proceed without auth information.
+  // Only attempt to get auth details if running in a browser environment
+  if (typeof window !== 'undefined') {
+      try {
+        const firebaseAuth = getAuth();
+        const currentUser = firebaseAuth.currentUser;
+        if (currentUser) {
+          authObject = buildAuthObject(currentUser);
+        }
+      } catch {
+        // This will catch errors if the Firebase app is not yet initialized.
+        // In this case, we'll proceed without auth information.
+      }
   }
 
   return {
@@ -109,7 +112,7 @@ ${JSON.stringify(requestObject, null, 2)}`;
 /**
  * A custom error class designed to be consumed by an LLM for debugging.
  * It structures the error information to mimic the request object
- * available in Firestore Security Rules.
+ * available in Firestore Security Rules. This class is isomorphic.
  */
 export class FirestorePermissionError extends Error {
   public readonly request: SecurityRuleRequest;
