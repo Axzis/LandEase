@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useFirestore, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -33,8 +33,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Rocket } from 'lucide-react';
-import { firebaseConfig } from '@/firebase/config';
 
 interface EditorClientProps {
   pageId: string;
@@ -362,61 +360,79 @@ export function EditorClient({ pageId }: EditorClientProps) {
 
 
   const handleSave = async () => {
+    if (!pageDocRef) return;
     setIsSaving(true);
-    try {
-      const pageRef = doc(firestore, 'pages', pageId);
-      await updateDoc(pageRef, {
-        pageName,
-        content: JSON.parse(JSON.stringify(content)),
-        lastUpdated: serverTimestamp(),
-        pageBackgroundColor,
+    const dataToSave = {
+      pageName,
+      content: JSON.parse(JSON.stringify(content)),
+      lastUpdated: serverTimestamp(),
+      pageBackgroundColor,
+    };
+
+    updateDoc(pageDocRef, dataToSave)
+      .then(() => {
+        toast({
+          title: 'Page Saved Successfully!',
+          description: 'Your changes have been saved.',
+        });
+        setIsDirty(false);
+      })
+      .catch((error) => {
+        const permissionError = new FirestorePermissionError({
+            path: pageDocRef.path,
+            operation: 'update',
+            requestResourceData: dataToSave,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({
+            variant: 'destructive',
+            title: 'Save Failed',
+            description: 'Could not save your changes. Please check permissions.',
+        });
+      })
+      .finally(() => {
+        setIsSaving(false);
       });
-      toast({
-        title: 'Page Saved Successfully!',
-        description: 'Your changes have been saved.',
-      });
-      setIsDirty(false);
-    } catch (error) {
-      console.error('Error saving page:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Save Failed',
-        description: 'Could not save your changes. Please try again.',
-      });
-    } finally {
-      setIsSaving(false);
-    }
   };
 
-  const handlePublishToggle = async (published: boolean) => {
+  const handlePublishToggle = (published: boolean) => {
+    if (!pageDocRef) return;
     setIsSaving(true);
-    try {
-      const pageRef = doc(firestore, 'pages', pageId);
-      await updateDoc(pageRef, {
+
+    const dataToUpdate = {
         published,
         lastUpdated: serverTimestamp(),
-      });
-      setIsPublished(published);
-      toast({
-        title: `Page ${published ? 'Published' : 'Unpublished'}`,
-        description: `Your page is now ${published ? 'live' : 'private'}.`,
-      });
-    } catch (error) {
-        console.error('Error updating publish status:', error);
+    };
+
+    updateDoc(pageDocRef, dataToUpdate)
+      .then(() => {
+        setIsPublished(published);
         toast({
-          variant: 'destructive',
-          title: 'Update Failed',
-          description: 'Could not update publish status. Please try again.',
+          title: `Page ${published ? 'Published' : 'Unpublished'}`,
+          description: `Your page is now ${published ? 'live' : 'private'}.`,
         });
-    } finally {
-      setIsSaving(false);
-    }
+      })
+      .catch((error) => {
+        const permissionError = new FirestorePermissionError({
+            path: pageDocRef.path,
+            operation: 'update',
+            requestResourceData: dataToUpdate,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({
+          variant: "destructive",
+          title: "Update Failed",
+          description: "Could not update publish status. Check permissions."
+        });
+      })
+      .finally(() => {
+        setIsSaving(false);
+      });
   }
 
   const [publicUrl, setPublicUrl] = useState('');
 
   useEffect(() => {
-    // This now runs only on the client, after the component has mounted
     setPublicUrl(`${window.location.origin}/p/${pageId}`);
   }, [pageId]);
 
@@ -431,9 +447,9 @@ export function EditorClient({ pageId }: EditorClientProps) {
   if (pageError) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
-          <div className="text-center">
+          <div className="text-center p-4">
               <h2 className="text-2xl font-bold text-destructive mb-2">Error Loading Page</h2>
-              <p className="text-muted-foreground">Could not load page data. You may not have permission to view this page, or it may not exist.</p>
+              <p className="text-muted-foreground max-w-md mx-auto">Could not load page data. This can happen if you don't have permission or if the page was deleted.</p>
               <Button onClick={() => router.push('/dashboard')} className="mt-4">Go to Dashboard</Button>
           </div>
       </div>
@@ -556,3 +572,5 @@ export function EditorClient({ pageId }: EditorClientProps) {
     </TooltipProvider>
   );
 }
+
+    
