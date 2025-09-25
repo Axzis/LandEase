@@ -58,5 +58,79 @@
       }
     ],
     "pageBackgroundColor": "#FFFFFF"
+  },
+  "LWHwtQHBi9J1Vn8aregI": {
+    "pageName": "Untitled Page",
+    "content": [
+      {
+        "id": "hero-1",
+        "children": [
+          {
+            "type": "Heading",
+            "id": "head-1",
+            "props": {
+              "text": "Welcome to Your New Page",
+              "level": "h1",
+              "align": "center"
+            }
+          },
+          {
+            "type": "Text",
+            "props": {
+              "text": "This is your starting point. Click on any element to edit it or drag new components from the left sidebar!",
+              "fontStyle": "normal",
+              "fontFamily": "Inter",
+              "textDecoration": "none",
+              "fontWeight": "normal",
+              "align": "center"
+            },
+            "id": "text-1"
+          },
+          {
+            "props": {
+              "align": "center",
+              "text": "Get Started",
+              "href": "#"
+            },
+            "id": "btn-1",
+            "type": "Button"
+          },
+          {
+            "props": {
+              "title": "Contact Us",
+              "fields": [
+                {
+                  "name": "name",
+                  "placeholder": "Your Name",
+                  "required": true,
+                  "type": "text",
+                  "id": "field_1",
+                  "label": "Name"
+                },
+                {
+                  "name": "email",
+                  "placeholder": "you@example.com",
+                  "required": true,
+                  "id": "field_2",
+                  "label": "Email",
+                  "type": "email"
+                }
+              ],
+              "description": "Fill out the form below and we will get back to you.",
+              "padding": "16px",
+              "buttonText": "Submit"
+            },
+            "id": "comp_1758787023486_b4henaf",
+            "type": "Form"
+          }
+        ],
+        "type": "Section",
+        "props": {
+          "padding": "64px",
+          "backgroundColor": "#FFFFFF"
+        }
+      }
+    ],
+    "pageBackgroundColor": "#FFFFFF"
   }
 }
