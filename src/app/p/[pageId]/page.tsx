@@ -23,7 +23,7 @@ export default function PublicPage({ params }: { params: Promise<{ pageId: strin
   const { pageId } = resolvedParams;
   
   const pageDocRef = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !pageId) return null;
     return doc(firestore, 'pages', pageId);
   }, [firestore, pageId]);
 
