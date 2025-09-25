@@ -25,7 +25,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { createDefaultPageContent } from '@/lib/utils';
 import { FirebaseError } from 'firebase/app';
 
 const formSchema = z.object({
@@ -69,29 +68,33 @@ export function AuthForm({ mode }: AuthFormProps) {
         const user = userCredential.user;
         await updateProfile(user, { displayName: values.name });
         
-        // Create user document only, remove page creation from this flow.
         const userDocRef = doc(firestore, "users", user.uid);
         const userDocData = {
           uid: user.uid,
           email: user.email,
           displayName: values.name,
           createdAt: serverTimestamp(),
-          pages: [] // Start with an empty array of pages
+          pages: [] 
         };
 
-        // Use a simple setDoc instead of a batch write to avoid complex permission issues.
-        setDoc(userDocRef, userDocData).catch(error => {
-          if (error.code === 'permission-denied') {
-            const permissionError = new FirestorePermissionError({
-                path: `users/${user.uid}`,
-                operation: 'create',
-                requestResourceData: userDocData,
-            });
-            errorEmitter.emit('permission-error', permissionError);
-          } else {
-            toast({ variant: 'destructive', title: 'Error during signup', description: 'Failed to create user data.'});
-          }
-        });
+        setDoc(userDocRef, userDocData)
+          .catch((error) => {
+            if (error.code === 'permission-denied') {
+                const permissionError = new FirestorePermissionError({
+                    path: `users/${user.uid}`,
+                    operation: 'create',
+                    requestResourceData: userDocData,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            } else {
+                console.error("Error creating user document:", error);
+                toast({
+                    variant: "destructive",
+                    title: "Signup Error",
+                    description: "Failed to save user data. Please try again.",
+                });
+            }
+          });
         
         toast({ title: "Account created successfully!" });
         router.push('/dashboard');
