@@ -82,27 +82,17 @@
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
+    "/users/{userId}": {
+        "schema": {
             "$ref": "#/entities/User"
-          },
-          "description": "Stores user profiles, indexed by their unique Firebase Auth ID."
-        }
-      },
-      {
-        "path": "/pages/{pageId}",
-        "definition": {
-          "entityName": "Page",
-          "schema": {
+        },
+        "description": "Stores user profiles, indexed by their unique Firebase Auth ID."
+    },
+    "/pages/{pageId}": {
+        "schema": {
             "$ref": "#/entities/Page"
-          },
-          "description": "Stores all landing pages created by users."
-        }
-      }
-    ]
+        },
+        "description": "Stores all landing pages created by users."
+    }
   }
 }
