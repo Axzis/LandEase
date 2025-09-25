@@ -54,17 +54,21 @@ export function ComponentWrapper({
 
   const getParentInfo = (element: HTMLElement | null): { parentId: string | null, columnIndex?: number } => {
     if (!element) return { parentId: null };
-
+  
+    // Start from the parent of the current wrapper to find the *actual* parent wrapper
     const parentWrapper = element.parentElement?.closest('[data-component-id]');
+    
     if (parentWrapper) {
       const parentId = parentWrapper.getAttribute('data-component-id');
       const parentType = parentWrapper.getAttribute('data-component-type');
-
+  
       if (parentType === 'Columns') {
-          const columnEl = element.closest('[data-column-index]');
-          const colIndexStr = columnEl?.getAttribute('data-column-index');
+        const columnEl = element.closest('[data-column-index]');
+        if (columnEl) {
+          const colIndexStr = columnEl.getAttribute('data-column-index');
           const columnIndex = colIndexStr ? parseInt(colIndexStr, 10) : undefined;
           return { parentId, columnIndex };
+        }
       }
       return { parentId };
     }
@@ -78,15 +82,18 @@ export function ComponentWrapper({
     
     const rect = e.currentTarget.getBoundingClientRect();
     const isContainer = type === 'Section' || type === 'Columns';
-    // Use a smaller portion for dropping inside a container, making top/bottom easier to hit
-    const edgeThreshold = isContainer ? rect.height * 0.25 : rect.height * 0.33;
+    
+    // Make the top drop zone smaller to make dropping 'below' the default behavior.
+    const topThreshold = rect.height * 0.25; 
 
-    if (e.clientY < rect.top + edgeThreshold) {
+    if (e.clientY < rect.top + topThreshold) {
       setDropPosition('top');
-    } else if (e.clientY > rect.bottom - edgeThreshold) {
-      setDropPosition('bottom');
+    } else if (isContainer) {
+      // For containers, anything that isn't the top edge allows dropping inside.
+      setDropPosition(null);
     } else {
-      setDropPosition(null); // Indicates drop inside for containers
+      // For non-containers, the rest of the component is a 'bottom' drop zone.
+      setDropPosition('bottom');
     }
     
     setIsDraggedOver(true);
@@ -118,14 +125,12 @@ export function ComponentWrapper({
         finalTargetId = null; // No specific target, append to the container
         finalPosition = 'bottom';
         
-        // If it's a column, find which column we're dropping into
         const columnEl = (e.target as HTMLElement).closest('[data-column-index]');
         if (columnEl) {
             const colIndexStr = columnEl.getAttribute('data-column-index');
             finalColumnIndex = colIndexStr ? parseInt(colIndexStr, 10) : undefined;
         } else {
-            // Dropped on the Section but not a specific column, default to first child list
-            finalColumnIndex = undefined; 
+            finalColumnIndex = 0; // Default to first column if not specified
         }
 
       } else {
@@ -133,7 +138,7 @@ export function ComponentWrapper({
         const parentInfo = getParentInfo(e.currentTarget as HTMLElement);
         finalParentId = parentInfo.parentId;
         finalTargetId = id;
-        finalPosition = dropPosition || 'bottom';
+        finalPosition = dropPosition || 'bottom'; // Default to bottom if somehow null
         finalColumnIndex = parentInfo.columnIndex;
       }
       
@@ -141,7 +146,7 @@ export function ComponentWrapper({
         onAddComponent(data.componentType, finalParentId, finalTargetId, finalPosition, finalColumnIndex);
       } else if (data.type === 'move-component') {
         const draggedId = data.componentId;
-        if (draggedId === id) return;
+        if (draggedId === finalTargetId && finalParentId === getParentInfo(e.currentTarget as HTMLElement).parentId) return;
         
         onMoveComponent(draggedId, finalTargetId, finalParentId, finalPosition, finalColumnIndex);
       }
