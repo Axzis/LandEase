@@ -24,6 +24,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setLoading(true);
+    if (!auth) {
+      setLoading(false);
+      // If auth service isn't available, we can't determine user state.
+      // Depending on app logic, you might want to set an error here.
+      return;
+    }
     const unsubscribe = auth.onAuthStateChanged(
         (user) => {
             setUser(user);
