@@ -3,6 +3,7 @@
 
 
 
+
 export type ComponentType = 'Section' | 'Heading' | 'Text' | 'Button' | 'Image' | 'Navbar' | 'Footer' | 'Columns' | 'Video' | 'Form';
 
 export interface BaseComponent {
@@ -144,4 +145,6 @@ export interface PublishedPage {
     content: PageContent;
     pageName: string;
     pageBackgroundColor: string;
+    pageId: string;
+    userId: string;
 }

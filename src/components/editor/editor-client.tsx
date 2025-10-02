@@ -2,12 +2,12 @@
 'use client';
 
 import { useState, useEffect, useMemo, useTransition } from 'react';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { useFirestore, useDoc, useUser } from '@/firebase';
+import { doc, setDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { useFirestore, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
-import { PageContent, PageComponent, ComponentType, Column } from '@/lib/types';
+import { PageContent, PageComponent, ComponentType, Column, PublishedPage } from '@/lib/types';
 import { ComponentPalette } from './component-palette';
 import { Canvas } from './canvas';
 import { InspectorPanel } from './inspector-panel';
@@ -34,6 +34,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useDoc } from '@/firebase/firestore/use-doc';
 
 interface EditorClientProps {
   pageId: string;
@@ -110,7 +111,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
   
   useEffect(() => {
     if (pageData) {
-      setPageName(pageData.pageName || '');
+      setPageName(pageData.pageName || 'Untitled Page');
       setContent(pageData.content || []);
       setIsPublished(pageData.published || false);
       setPageBackgroundColor(pageData.pageBackgroundColor || '#FFFFFF');
@@ -375,31 +376,57 @@ export function EditorClient({ pageId }: EditorClientProps) {
 
 
   const handleSave = async (publishedState: boolean) => {
-    if (!pageDocRef) return;
+    if (!firestore || !user) {
+      toast({ variant: 'destructive', title: 'Error', description: 'User or Firestore not available.' });
+      return;
+    }
     setIsSaving(true);
-    
-    const pageDataToSave = {
-      userId: user?.uid,
-      pageName,
-      content: JSON.parse(JSON.stringify(content)),
-      lastUpdated: serverTimestamp(),
-      pageBackgroundColor,
-      published: publishedState,
-    };
-
+  
     try {
-      await setDoc(pageDocRef, pageDataToSave, { merge: true });
+      const batch = writeBatch(firestore);
+  
+      // 1. Save the full version to the private 'pages' collection
+      const pageDocRef = doc(firestore, 'pages', pageId);
+      const pageDataToSave = {
+        userId: user.uid,
+        pageName,
+        content: JSON.parse(JSON.stringify(content)), // Deep copy
+        lastUpdated: serverTimestamp(),
+        pageBackgroundColor,
+        published: publishedState,
+      };
+      batch.set(pageDocRef, pageDataToSave, { merge: true });
+  
+      // 2. If published, save a public version to 'publishedPages' collection. Otherwise, delete it.
+      const publicPageDocRef = doc(firestore, 'publishedPages', pageId);
+      if (publishedState) {
+        const publicPageData: PublishedPage = {
+          content: JSON.parse(JSON.stringify(content)), // Deep copy
+          pageName,
+          pageBackgroundColor,
+          pageId,
+          userId: user.uid,
+        };
+        batch.set(publicPageDocRef, publicPageData);
+      } else {
+        // If it's being unpublished, delete it from the public collection.
+        batch.delete(publicPageDocRef);
+      }
+  
+      await batch.commit();
+  
       toast({
         title: 'Page Saved!',
-        description: 'Your changes have been saved.',
+        description: `Your changes have been saved.`,
       });
       setIsDirty(false);
+  
     } catch (error) {
-      console.error("Error saving page to Firestore: ", error);
+      console.error("Error saving page:", error);
       toast({
         variant: 'destructive',
         title: 'Save Failed',
-        description: 'Could not save your changes to the database.',
+        description: 'Could not save your changes. Check console for details.',
       });
     } finally {
       setIsSaving(false);
@@ -426,7 +453,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
     setPublicUrl(`${window.location.origin}/p/${pageId}`);
   }, [pageId]);
 
-  if (isUserLoading || (isPageLoading && pageDocRef)) {
+  if (isUserLoading || (isPageLoading && !pageData)) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

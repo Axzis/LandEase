@@ -6,34 +6,21 @@ import { doc } from 'firebase/firestore';
 import { useDoc, useFirestore } from '@/firebase';
 import { Loader2 } from 'lucide-react';
 import { EditorCanvas } from '@/components/editor/editor-canvas';
+import { PublishedPage } from '@/lib/types';
 
-// Define a clear type for the expected page data
-interface PageData {
-  content: any[];
-  pageBackgroundColor: string;
-  pageName: string;
-  published: boolean;
-  userId: string;
-}
 
 export default function PublicPage({ params }: { params: { pageId: string } }) {
   const firestore = useFirestore();
-  // Correctly unwrap the params promise using React.use()
-  const resolvedParams = React.use(params);
-  const { pageId } = resolvedParams;
+  const { pageId } = React.use(params);
   
-  // Memoize the document reference to prevent re-renders.
-  // This points back to the primary 'pages' collection.
   const pageDocRef = useMemo(() => {
     if (!firestore || !pageId) return null;
-    return doc(firestore, 'pages', pageId);
+    // IMPORTANT: Fetch from the public 'publishedPages' collection
+    return doc(firestore, 'publishedPages', pageId);
   }, [firestore, pageId]);
 
-  // The useDoc hook will attempt to fetch the document.
-  // Security rules will determine if it succeeds.
-  const { data: pageData, isLoading, error } = useDoc<PageData>(pageDocRef);
+  const { data: pageData, isLoading, error } = useDoc<PublishedPage>(pageDocRef);
 
-  // 1. Show a loading state while the request is in flight.
   if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -42,22 +29,16 @@ export default function PublicPage({ params }: { params: { pageId: string } }) {
     );
   }
 
-  // 2. If an error occurred OR if loading is done and there's still no data,
-  // it means the doc doesn't exist or we don't have permission to read it
-  // (because it's not published). In either case, show a 404.
+  // If there's an error OR if loading is done and there's still no data,
+  // it means the page either doesn't exist or isn't published.
   if (error || !pageData) {
-     if (error) console.error("Error loading page:", error.message);
+     if (error) console.error("Error loading published page:", error.message);
      notFound();
   }
   
-  // 3. We can be certain pageData exists here.
-  // As a final client-side check, ensure the published flag is explicitly true.
-  // While the security rule is the primary enforcer, this adds a layer of defense.
-  if (pageData.published !== true) {
-    notFound();
-  }
+  // No need to check pageData.published, as its existence in this collection
+  // confirms it is public.
 
-  // 4. If all checks pass, render the page.
   return (
     <div style={{ backgroundColor: pageData.pageBackgroundColor || '#FFFFFF' }}>
       <EditorCanvas

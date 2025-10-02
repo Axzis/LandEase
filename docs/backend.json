@@ -43,7 +43,7 @@
         "$schema": "http://json-schema.org/draft-07/schema#",
         "title": "Page",
         "type": "object",
-        "description": "Represents a single landing page created by a user.",
+        "description": "Represents a single landing page created by a user. This is the private, editable version.",
         "properties": {
             "userId": {
                 "type": "string",
@@ -74,6 +74,20 @@
             }
         },
         "required": ["userId", "pageName", "content", "published"]
+    },
+    "PublishedPage": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "PublishedPage",
+        "type": "object",
+        "description": "Represents the public-facing, read-only version of a landing page.",
+        "properties": {
+            "userId": { "type": "string" },
+            "pageId": { "type": "string" },
+            "pageName": { "type": "string" },
+            "content": { "type": "array" },
+            "pageBackgroundColor": { "type": "string" }
+        },
+        "required": ["userId", "pageId", "pageName", "content"]
     },
     "Submission": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -108,21 +122,19 @@
   },
   "firestore": {
     "/users/{userId}": {
-        "schema": {
-            "$ref": "#/entities/User"
-        },
+        "schema": { "$ref": "#/entities/User" },
         "description": "Stores user profiles, indexed by their unique Firebase Auth ID."
     },
     "/pages/{pageId}": {
-        "schema": {
-            "$ref": "#/entities/Page"
-        },
-        "description": "Stores all landing pages created by users. Private and editable by owners, but publicly readable if 'published' flag is true."
+        "schema": { "$ref": "#/entities/Page" },
+        "description": "Stores all landing pages created by users. Private and editable by owners."
+    },
+    "/publishedPages/{pageId}": {
+        "schema": { "$ref": "#/entities/PublishedPage" },
+        "description": "Stores the public-facing, read-only content of published pages."
     },
     "/pages/{pageId}/submissions/{submissionId}": {
-        "schema": {
-            "$ref": "#/entities/Submission"
-        },
+        "schema": { "$ref": "#/entities/Submission" },
         "description": "Stores form submissions for a specific page. Anyone can write to this collection."
     }
   }
