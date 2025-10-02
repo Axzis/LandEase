@@ -3,6 +3,7 @@ import { BaseInspector } from './base-inspector';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+import { ImageUploader } from '../image-uploader';
 
 interface PageInspectorProps {
     backgroundColor: string;
@@ -36,18 +37,12 @@ export function PageInspector({ backgroundColor, onUpdateBackgroundColor, thumbn
 
             <Separator />
 
-            <div className="space-y-2">
-                <Label htmlFor="page-thumbnailUrl">Thumbnail URL</Label>
-                <Input
-                    id="page-thumbnailUrl"
-                    value={thumbnailUrl}
-                    onChange={(e) => onUpdateThumbnailUrl(e.target.value)}
-                    placeholder="https://example.com/image.png"
-                />
-                 <p className="text-xs text-muted-foreground">
-                    This image will be shown on the dashboard.
-                </p>
-            </div>
+            <ImageUploader 
+              label="Thumbnail Image"
+              currentImageUrl={thumbnailUrl}
+              onUploadSuccess={onUpdateThumbnailUrl}
+              folder="thumbnails"
+            />
 
             <div className="text-center text-muted-foreground p-8 border-2 border-dashed rounded-lg mt-8">
                 <Settings className="mx-auto h-8 w-8 mb-4" />
