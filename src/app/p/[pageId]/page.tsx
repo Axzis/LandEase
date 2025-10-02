@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { notFound, useParams } from 'next/navigation';
 import { doc } from 'firebase/firestore';
 import { useDoc, useFirestore } from '@/firebase';
@@ -8,7 +8,6 @@ import { Loader2 } from 'lucide-react';
 import { EditorCanvas } from '@/components/editor/editor-canvas';
 import { PageContent } from '@/lib/types';
 
-// Definisikan tipe data untuk halaman publik
 interface PublicPageData {
   content: PageContent;
   pageBackgroundColor: string;
@@ -17,50 +16,50 @@ interface PublicPageData {
 }
 
 export default function PublicPage() {
+  console.log("--- Komponen PublicPage Mulai Dirender ---");
+
   const firestore = useFirestore();
   const params = useParams();
   
-  // Cara paling aman untuk mendapatkan ID halaman dari URL
   const pageId = typeof params?.pageId === 'string' ? params.pageId : null;
-
-  // --- LANGKAH DEBUGGING ---
-  // Pesan ini akan muncul di konsol browser Anda (tekan F12)
-  console.log("Mencoba memuat halaman dengan ID:", pageId);
+  console.log("1. ID Halaman dari URL (useParams):", pageId);
 
   const pageDocRef = useMemo(() => {
     if (!firestore || !pageId) {
-      console.log("Referensi dokumen tidak bisa dibuat: firestore atau pageId tidak ada.");
+      console.log("2. Referensi dokumen DILEWATI (firestore atau pageId belum siap).");
       return null;
     }
-    console.log(`Membuat referensi dokumen: publishedPages/${pageId}`);
+    console.log(`2. Referensi dokumen DIBUAT untuk: publishedPages/${pageId}`);
     return doc(firestore, 'publishedPages', pageId);
   }, [firestore, pageId]);
 
   const { data: pageData, isLoading, error } = useDoc<PublicPageData>(pageDocRef);
 
-  // Tangani jika ada error dari hook Firebase
-  if (error) {
-    console.error("Error dari hook Firebase:", error);
-    return notFound();
-  }
+  useEffect(() => {
+    console.log("3. Status Hook useDoc:", { isLoading, hasData: !!pageData, error });
+  }, [isLoading, pageData, error]);
 
-  // Tampilkan loading jika ID belum siap atau Firebase sedang mengambil data
-  if (isLoading || !pageDocRef) {
+
+  if (isLoading || !pageId) {
+    console.log("4. Menampilkan status LOADING...");
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="ml-2">Memuat Halaman...</p>
       </div>
     );
   }
 
-  // Tampilkan 404 jika loading selesai tapi tidak ada data
-  if (!pageData) {
-    console.warn(`Dokumen tidak ditemukan untuk ID: ${pageId}. Ini yang menyebabkan 404.`);
+  if (error) {
+    console.error("5. TERJADI ERROR saat mengambil data:", error);
     return notFound();
   }
   
-  // Tampilkan halaman jika data berhasil didapatkan
+  if (!pageData) {
+    console.warn("6. TIDAK ADA DATA DITEMUKAN setelah loading selesai. Ini menyebabkan 404.");
+    return notFound();
+  }
+  
+  console.log("7. DATA DITEMUKAN! Merender halaman...");
   return (
     <div style={{ backgroundColor: pageData.pageBackgroundColor || '#FFFFFF' }}>
       <EditorCanvas
