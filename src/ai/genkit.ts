@@ -8,11 +8,11 @@ config();
 let googleAiPlugin: Plugin<[GoogleAIPlugin] | []>;
 
 // Check if the environment variable exists AND is not an empty string
-if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON && process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON.trim() !== '') {
+const credsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+
+if (credsJson && credsJson.trim().startsWith('{') && credsJson.trim().endsWith('}')) {
   try {
-    const serviceAccount = JSON.parse(
-      process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
-    );
+    const serviceAccount = JSON.parse(credsJson);
     googleAiPlugin = googleAI({
       credentials: {
         client_email: serviceAccount.client_email,
@@ -25,7 +25,10 @@ if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON && process.env.GOOGLE_APPLIC
     googleAiPlugin = googleAI();
   }
 } else {
-  // Default initialization if the environment variable is not set
+  // Default initialization if the environment variable is not set or invalid
+  if (credsJson && credsJson.trim() !== '') {
+    console.error('GOOGLE_APPLICATION_CREDENTIALS_JSON is set but is not a valid JSON object. Using default Genkit initialization.');
+  }
   googleAiPlugin = googleAI();
 }
 
