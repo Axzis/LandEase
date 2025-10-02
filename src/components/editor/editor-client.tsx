@@ -1,14 +1,12 @@
-
-
 'use client';
 
 import { useState, useEffect, useMemo, useTransition } from 'react';
-import { doc, setDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
-import { useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { doc, setDoc, serverTimestamp, writeBatch } from 'firebase/firestore'; // Pastikan 'writeBatch' diimpor
+import { useFirestore, useDoc, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
-import { PageContent, PageComponent, ComponentType, Column, PublishedPage } from '@/lib/types';
+import { PageContent, PageComponent, ComponentType, Column } from '@/lib/types';
 import { ComponentPalette } from './component-palette';
 import { Canvas } from './canvas';
 import { InspectorPanel } from './inspector-panel';
@@ -35,7 +33,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useDoc } from '@/firebase/firestore/use-doc';
 
 interface EditorClientProps {
   pageId: string;
@@ -44,49 +41,48 @@ interface EditorClientProps {
 const generateId = () => `comp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
 const createNewComponent = (type: ComponentType): PageComponent => {
-  const id = generateId();
-  switch (type) {
-    case 'Section':
-      return { id, type: 'Section', props: { backgroundColor: 'transparent', padding: '16px', display: 'block', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', gap: '16px' }, children: [] };
-    case 'Columns':
-        const createColumns = (count: number): Column[] => {
-            return Array.from({ length: count }, () => ({ id: generateId(), children: [] }));
-        }
-        return { id, type: 'Columns', props: { numberOfColumns: 2, gap: '16px' }, columns: createColumns(2) };
-    case 'Heading':
-      return { id, type: 'Heading', props: { text: 'New Heading', level: 'h2', align: 'left', padding: '0px' } };
-    case 'Text':
-      return { id, type: 'Text', props: { text: 'This is a new text block. Click to edit.', align: 'left', fontFamily: 'Inter', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none', padding: '0px' } };
-    case 'Button':
-      return { id, type: 'Button', props: { text: 'Click Me', href: '#', align: 'left', padding: '0px' } };
-    case 'Image':
-      return { id, type: 'Image', props: { src: 'https://placehold.co/600x400', alt: 'Placeholder image', width: 600, height: 400, padding: '0px' } };
-    case 'Navbar':
-      return { id, type: 'Navbar', props: { backgroundColor: '#FFFFFF', logoText: 'LandEase', logoImageUrl: '', links: [{text: 'Home', href: '#'}, {text: 'About', href: '#'}, {text: 'Contact', href: '#'}] } };
-    case 'Footer':
-      return { id, type: 'Footer', props: { backgroundColor: '#1F2937', copyrightText: `© ${new Date().getFullYear()} Your Company. All rights reserved.` } };
-    case 'Video':
-      return { id, type: 'Video', props: { src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', padding: '0px' } };
-    case 'Form':
-      return { 
-        id, 
-        type: 'Form', 
-        props: { 
-          title: 'Contact Us', 
-          description: 'Fill out the form below and we will get back to you.', 
-          buttonText: 'Submit', 
-          padding: '16px',
-          fields: [
-            { id: 'field_1', name: 'name', label: 'Name', type: 'text', placeholder: 'Your Name', required: true },
-            { id: 'field_2', name: 'email', label: 'Email', type: 'email', placeholder: 'you@example.com', required: true },
-          ]
-        } 
-      };
-    default:
-      throw new Error(`Unknown component type: ${type}`);
-  }
+    const id = generateId();
+    switch (type) {
+      case 'Section':
+        return { id, type: 'Section', props: { backgroundColor: 'transparent', padding: '16px', display: 'block', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', gap: '16px' }, children: [] };
+      case 'Columns':
+          const createColumns = (count: number): Column[] => {
+              return Array.from({ length: count }, () => ({ id: generateId(), children: [] }));
+          }
+          return { id, type: 'Columns', props: { numberOfColumns: 2, gap: '16px' }, columns: createColumns(2) };
+      case 'Heading':
+        return { id, type: 'Heading', props: { text: 'New Heading', level: 'h2', align: 'left', padding: '0px' } };
+      case 'Text':
+        return { id, type: 'Text', props: { text: 'This is a new text block. Click to edit.', align: 'left', fontFamily: 'Inter', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none', padding: '0px' } };
+      case 'Button':
+        return { id, type: 'Button', props: { text: 'Click Me', href: '#', align: 'left', padding: '0px' } };
+      case 'Image':
+        return { id, type: 'Image', props: { src: 'https://placehold.co/600x400', alt: 'Placeholder image', width: 600, height: 400, padding: '0px' } };
+      case 'Navbar':
+        return { id, type: 'Navbar', props: { backgroundColor: '#FFFFFF', logoText: 'LandEase', logoImageUrl: '', links: [{text: 'Home', href: '#'}, {text: 'About', href: '#'}, {text: 'Contact', href: '#'}] } };
+      case 'Footer':
+        return { id, type: 'Footer', props: { backgroundColor: '#1F2937', copyrightText: `© ${new Date().getFullYear()} Your Company. All rights reserved.` } };
+      case 'Video':
+        return { id, type: 'Video', props: { src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', padding: '0px' } };
+      case 'Form':
+        return { 
+          id, 
+          type: 'Form', 
+          props: { 
+            title: 'Contact Us', 
+            description: 'Fill out the form below and we will get back to you.', 
+            buttonText: 'Submit', 
+            padding: '16px',
+            fields: [
+              { id: 'field_1', name: 'name', label: 'Name', type: 'text', placeholder: 'Your Name', required: true },
+              { id: 'field_2', name: 'email', label: 'Email', type: 'email', placeholder: 'you@example.com', required: true },
+            ]
+          } 
+        };
+      default:
+        throw new Error(`Unknown component type: ${type}`);
+    }
 };
-
 
 export function EditorClient({ pageId }: EditorClientProps) {
   const firestore = useFirestore();
@@ -112,25 +108,21 @@ export function EditorClient({ pageId }: EditorClientProps) {
   
   useEffect(() => {
     if (pageData) {
-      setPageName(pageData.pageName || 'Untitled Page');
+      setPageName(pageData.pageName || '');
       setContent(pageData.content || []);
       setIsPublished(pageData.published || false);
       setPageBackgroundColor(pageData.pageBackgroundColor || '#FFFFFF');
     }
   }, [pageData]);
 
-
-  // Keyboard shortcut for deleting component
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.key === 'Delete' || e.key === 'Backspace')) {
-        // Prevent browser back navigation on Backspace
         if (e.key === 'Backspace' && (e.target as HTMLElement).tagName !== 'INPUT' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
           e.preventDefault();
         }
         
         if (selectedComponentId) {
-            // Check if focus is not inside an input field
             const activeElement = document.activeElement;
             if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
                 return;
@@ -144,7 +136,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [selectedComponentId, content]); // Depend on content to get the latest version
+  }, [selectedComponentId, content]);
 
   const handleSelectComponent = (id: string | null) => {
     setSelectedComponentId(id);
@@ -155,7 +147,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
         const component = components[i];
         if (component.id === id) return { component, parent: components, index: i };
         
-        if (component.type === 'Columns') {
+        if (component.type === 'Columns' && component.columns) {
             for (const column of component.columns) {
                 const found = findComponent(column.children, id);
                 if (found.component) {
@@ -191,7 +183,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
           return true;
         }
 
-        if (component.type === 'Columns') {
+        if (component.type === 'Columns' && component.columns) {
           for (const col of component.columns) {
             if (updateRecursively(col.children)) return true;
           }
@@ -214,7 +206,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
     const deleteRecursively = (items: PageComponent[]): PageComponent[] => {
         return items.filter(item => {
             if (item.id === id) return false;
-            if (item.type === 'Columns') {
+            if (item.type === 'Columns' && item.columns) {
                 item.columns = item.columns.map(col => ({...col, children: deleteRecursively(col.children)}));
             } else if (item.children) {
                 item.children = deleteRecursively(item.children);
@@ -230,34 +222,32 @@ export function EditorClient({ pageId }: EditorClientProps) {
     const newComponent = createNewComponent(type);
     
     const addRecursively = (items: PageComponent[]): PageComponent[] => {
-      // Add to root level
       if (parentId === null) {
-        if (targetId === null) { // Add to end of root
+        if (targetId === null) {
           return [...items, newComponent];
         }
-        // Add before or after a specific root component
         const targetIndex = items.findIndex(item => item.id === targetId);
         if (targetIndex !== -1) {
             const newItems = [...items];
             newItems.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, newComponent);
             return newItems;
         }
-        return [...items, newComponent]; // Fallback to adding at the end
+        return [...items, newComponent];
       }
 
       return items.map(item => {
         if (item.id === parentId) {
-            if (item.type === 'Columns' && columnIndex !== undefined) {
+            if (item.type === 'Columns' && item.columns && columnIndex !== undefined) {
                 const newColumns = [...item.columns];
                 const targetColumn = newColumns[columnIndex];
                 if (targetColumn) {
                     const targetIndex = targetColumn.children.findIndex(child => child.id === targetId);
-                    if (targetId === null) { // dropped on column bg
+                    if (targetId === null) {
                         targetColumn.children.push(newComponent);
                     } else if (targetIndex !== -1) {
                         targetColumn.children.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, newComponent);
                     } else {
-                        targetColumn.children.push(newComponent); // fallback
+                        targetColumn.children.push(newComponent);
                     }
                 }
                 return { ...item, columns: newColumns };
@@ -275,7 +265,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
                 }
                 return { ...item, children: newChildren };
             }
-        } else if (item.type === 'Columns') {
+        } else if (item.type === 'Columns' && item.columns) {
             const newColumns = item.columns.map(col => ({...col, children: addRecursively(col.children)}));
             return {...item, columns: newColumns};
         } else if (item.children) {
@@ -301,7 +291,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
           componentToMove = item;
           return false;
         }
-        if (item.type === 'Columns') {
+        if (item.type === 'Columns' && item.columns) {
            item.columns = item.columns.map(col => ({...col, children: removeComponent(col.children)}));
         } else if (item.children) {
            item.children = removeComponent(item.children);
@@ -317,7 +307,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
       if (parentId) {
         return items.map(item => {
           if (item.id === parentId) {
-            if (item.type === 'Columns' && columnIndex !== undefined) {
+            if (item.type === 'Columns' && item.columns && columnIndex !== undefined) {
                 const newColumns = [...item.columns];
                 const targetColumn = newColumns[columnIndex];
                 if (targetColumn) {
@@ -328,7 +318,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
                         } else {
                             targetColumn.children.push(componentToMove!);
                         }
-                    } else { // dropped on column bg
+                    } else {
                         targetColumn.children.push(componentToMove!);
                     }
                 }
@@ -347,7 +337,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
                 }
                 return { ...item, children: newChildren };
             }
-          } else if (item.type === 'Columns') {
+          } else if (item.type === 'Columns' && item.columns) {
             const newColumns = item.columns.map(col => ({...col, children: insertComponent(col.children)}));
             return { ...item, columns: newColumns };
           } else if (item.children) {
@@ -355,17 +345,17 @@ export function EditorClient({ pageId }: EditorClientProps) {
           }
           return item;
         });
-      } else { // Dropped on root
+      } else {
           const newItems = [...items];
           if (targetId) {
             const targetIndex = newItems.findIndex(c => c.id === targetId);
             if (targetIndex !== -1) {
                 newItems.splice(targetIndex + (position === 'bottom' ? 1: 0), 0, componentToMove!);
             } else {
-                newItems.push(componentToMove!); // Fallback
+                newItems.push(componentToMove!);
             }
           } else {
-            newItems.push(componentToMove!); // Dropped on canvas bg
+            newItems.push(componentToMove!);
           }
           return newItems;
       }
@@ -375,73 +365,52 @@ export function EditorClient({ pageId }: EditorClientProps) {
     setIsDirty(true);
   };
 
-
   const handleSave = async (publishedState: boolean) => {
     if (!pageDocRef || !user || !firestore) return;
     setIsSaving(true);
-  
+
     try {
-      const batch = writeBatch(firestore);
-  
-      // 1. Selalu simpan versi utama ke koleksi 'pages'
-      const pageDataToSave = {
-        userId: user.uid,
-        pageName,
-        content: JSON.parse(JSON.stringify(content)),
-        lastUpdated: serverTimestamp(),
-        pageBackgroundColor,
-        published: publishedState,
-      };
-      batch.set(pageDocRef, pageDataToSave, { merge: true });
-  
-      // 2. Atur koleksi 'publishedPages'
-      const publicPageDocRef = doc(firestore, 'publishedPages', pageId);
-  
-      if (publishedState) {
-        // Jika dipublikasikan, buat/update salinan publiknya
-        const publicPageData: PublishedPage = {
-          pageId,
-          content: JSON.parse(JSON.stringify(content)),
-          pageName,
-          pageBackgroundColor,
-          userId: user.uid,
+        const batch = writeBatch(firestore);
+
+        const pageDataToSave = {
+            userId: user.uid,
+            pageName,
+            content: JSON.parse(JSON.stringify(content)),
+            lastUpdated: serverTimestamp(),
+            pageBackgroundColor,
+            published: publishedState,
         };
-        batch.set(publicPageDocRef, publicPageData);
-      } else {
-        // Jika tidak dipublikasikan, hapus dari koleksi publik
-        batch.delete(publicPageDocRef);
-      }
-  
-      await batch.commit();
-  
-      toast({
-        title: 'Page Saved!',
-        description: 'Your changes have been successfully saved.',
-      });
-      setIsDirty(false);
-    } catch (error: any) {
-      if (error.code === 'permission-denied') {
-        const permissionError = new FirestorePermissionError({
-          path: pageDocRef.path,
-          operation: 'write',
-          requestResourceData: {
-            page: { path: pageDocRef.path, data: { pageName, published: publishedState, pageBackgroundColor } },
-            publishedPage: publishedState 
-              ? { path: `publishedPages/${pageId}`, data: { pageName, pageBackgroundColor } }
-              : { path: `publishedPages/${pageId}`, data: null }
-          }
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      } else {
-        console.error("Error saving page: ", error);
+        batch.set(pageDocRef, pageDataToSave, { merge: true });
+
+        const publicPageDocRef = doc(firestore, 'publishedPages', pageId);
+        if (publishedState) {
+            const publicPageData = {
+                content: JSON.parse(JSON.stringify(content)),
+                pageName,
+                pageBackgroundColor,
+                userId: user.uid,
+            };
+            batch.set(publicPageDocRef, publicPageData);
+        } else {
+            batch.delete(publicPageDocRef);
+        }
+
+        await batch.commit();
+
         toast({
-          variant: 'destructive',
-          title: 'Save Failed',
-          description: 'Could not save your changes. Check the console for more details.',
+            title: 'Page Saved!',
+            description: 'Your changes have been successfully saved.',
         });
-      }
+        setIsDirty(false);
+    } catch (error) {
+        console.error("Error saving page to Firestore: ", error);
+        toast({
+            variant: 'destructive',
+            title: 'Save Failed',
+            description: 'Could not save your changes to the database.',
+        });
     } finally {
-      setIsSaving(false);
+        setIsSaving(false);
     }
   };
 
@@ -462,10 +431,12 @@ export function EditorClient({ pageId }: EditorClientProps) {
   const [publicUrl, setPublicUrl] = useState('');
 
   useEffect(() => {
-    setPublicUrl(`${window.location.origin}/p/${pageId}`);
+    if (typeof window !== 'undefined') {
+      setPublicUrl(`${window.location.origin}/p/${pageId}`);
+    }
   }, [pageId]);
 
-  if (isUserLoading || (isPageLoading && !pageData)) {
+  if (isUserLoading || (isPageLoading && pageDocRef)) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -496,7 +467,6 @@ export function EditorClient({ pageId }: EditorClientProps) {
       </div>
     )
   }
-
 
   return (
     <TooltipProvider>
@@ -613,5 +583,3 @@ export function EditorClient({ pageId }: EditorClientProps) {
     </TooltipProvider>
   );
 }
-
-    
