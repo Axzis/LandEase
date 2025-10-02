@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useMemo } from 'react';
-import { notFound } from 'next/navigation';
+import React, { useMemo, useEffect, useState } from 'react';
+import { notFound, useParams } from 'next/navigation'; // Tambahkan useParams
 import { doc } from 'firebase/firestore';
 import { useDoc, useFirestore } from '@/firebase';
 import { Loader2 } from 'lucide-react';
@@ -16,24 +16,24 @@ interface PublicPageData {
   userId: string;
 }
 
-export default function PublicPage({ params }: { params: { pageId: string } }) {
+export default function PublicPage() { // Hapus props 'params' dari sini
   const firestore = useFirestore();
-
-  // 🔥 PERBAIKAN 1: Kesalahan pengetikan `React.use(params)` telah diperbaiki
-  const resolvedParams = React.use(params);
-  const { pageId } = resolvedParams;
-
+  
+  // 🔥 PERBAIKAN UTAMA: Gunakan hook useParams() untuk mendapatkan ID halaman
+  const params = useParams();
+  const pageId = typeof params.pageId === 'string' ? params.pageId : null;
+  
   const pageDocRef = useMemo(() => {
     if (!firestore || !pageId) return null;
     
-    // Pastikan ini mengarah ke koleksi 'publishedPages'
+    // Ini sudah benar, mengarah ke koleksi 'publishedPages'
     return doc(firestore, 'publishedPages', pageId);
   }, [firestore, pageId]);
 
-  // 🔥 PERBAIKAN 2: Pastikan `useDoc` menggunakan tipe data yang benar
   const { data: pageData, isLoading, error } = useDoc<PublicPageData>(pageDocRef);
 
-  if (isLoading) {
+  // 1. Tampilkan loading spinner saat data diambil
+  if (isLoading || !pageId) { // Tambahkan pengecekan !pageId
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -41,13 +41,13 @@ export default function PublicPage({ params }: { params: { pageId: string } }) {
     );
   }
 
-  // Jika error atau tidak ada data, tampilkan 404
+  // 2. Jika ada error atau data tidak ditemukan, tampilkan 404
   if (error || !pageData) {
      if (error) console.error("Error loading public page:", error.message);
      return notFound();
   }
   
-  // Render halaman
+  // 3. Render halaman
   return (
     <div style={{ backgroundColor: pageData.pageBackgroundColor || '#FFFFFF' }}>
       <EditorCanvas
