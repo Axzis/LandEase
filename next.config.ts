@@ -31,14 +31,8 @@ const nextConfig: NextConfig = {
       }
     ],
   },
-  devIndicators: {
-    buildActivity: false,
-    appIsrStatus: false,
-  },
   experimental: {
-    allowedDevOrigins: [
-        "https://6000-firebase-studio-1755664777913.cluster-w5vd22whf5gmav2vgkomwtc4go.cloudworkstations.dev"
-    ]
+    // allowedDevOrigins was moved to the top level
   }
 };
 
