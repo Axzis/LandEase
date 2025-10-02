@@ -1,14 +1,14 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { notFound, useParams } from 'next/navigation';
-import { doc } from 'firebase/firestore';
-import { useDoc, useFirestore } from '@/firebase';
+import { doc, getDoc, type DocumentData } from 'firebase/firestore'; // <-- Perubahan di sini
+import { useFirestore } from '@/firebase';
 import { Loader2 } from 'lucide-react';
 import { EditorCanvas } from '@/components/editor/editor-canvas';
 import { PageContent } from '@/lib/types';
 
-interface PublicPageData {
+interface PublicPageData extends DocumentData {
   content: PageContent;
   pageBackgroundColor: string;
   pageName: string;
@@ -18,18 +18,41 @@ interface PublicPageData {
 export default function PublicPage() {
   const firestore = useFirestore();
   const params = useParams();
-  
-  // Cara paling stabil untuk mendapatkan ID halaman di komponen klien
   const pageId = typeof params.pageId === 'string' ? params.pageId : null;
-  
-  const pageDocRef = useMemo(() => {
-    if (!firestore || !pageId) return null;
-    return doc(firestore, 'publishedPages', pageId);
+
+  const [pageData, setPageData] = useState<PublicPageData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (!firestore || !pageId) {
+      setIsLoading(false);
+      return;
+    }
+
+    const fetchPageData = async () => {
+      setIsLoading(true);
+      try {
+        const docRef = doc(firestore, 'publishedPages', pageId);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          setPageData(docSnap.data() as PublicPageData);
+        } else {
+          // Jika docSnap.exists() false, berarti dokumen tidak ditemukan
+          setPageData(null);
+        }
+      } catch (e: any) {
+        console.error("Error saat mengambil dokumen:", e);
+        setError(e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPageData();
   }, [firestore, pageId]);
 
-  const { data: pageData, isLoading, error } = useDoc<PublicPageData>(pageDocRef);
-
-  // Tampilkan loading jika ID belum siap atau data sedang diambil
   if (isLoading || !pageId) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -38,11 +61,8 @@ export default function PublicPage() {
     );
   }
 
-  // Jika ada error atau data tidak ditemukan setelah loading selesai, tampilkan 404
+  // Tampilkan 404 jika ada error atau data tidak ditemukan setelah loading
   if (error || !pageData) {
-     if (error) {
-        console.error("Gagal memuat halaman publik:", error.message);
-     }
      return notFound();
   }
   

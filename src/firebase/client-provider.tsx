@@ -4,7 +4,7 @@ import React, { useMemo, type ReactNode } from 'react';
 import { AuthProvider } from '@/firebase/auth/use-user';
 import { FirebaseProvider } from '@/firebase/provider';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
-import { firebaseConfig } from '@/firebase/config'; // <-- Impor dari file config
+import { firebaseConfig } from '@/firebase/config'; // Impor dari file config
 
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
@@ -21,9 +21,7 @@ function initializeFirebase(): FirebaseServices | null {
     console.error("Variabel lingkungan Firebase (NEXT_PUBLIC_FIREBASE_*) tidak diatur. Periksa file .env.local Anda.");
     return null;
   }
-
   const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-  
   return {
     firebaseApp: app,
     auth: getAuth(app),
@@ -33,7 +31,6 @@ function initializeFirebase(): FirebaseServices | null {
 
 export function FirebaseClientProvider({ children }: { children: ReactNode }) {
   const firebaseServices = useMemo(() => initializeFirebase(), []);
-
   if (!firebaseServices) {
      return (
       <div className="flex items-center justify-center h-screen">
@@ -46,7 +43,6 @@ export function FirebaseClientProvider({ children }: { children: ReactNode }) {
       </div>
     );
   }
-
   return (
     <FirebaseProvider
       firebaseApp={firebaseServices.firebaseApp}
