@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '../ui/textarea';
 import { PublicForm } from './renderable/public-form';
+import Image from 'next/image';
 
 const getEmbedUrl = (url: string): string | null => {
     let videoId;
@@ -84,9 +85,10 @@ const componentMap: { [key: string]: React.ComponentType<any> } = {
     }),
     Image: React.forwardRef<HTMLDivElement, { src: string, alt: string, width: number, height: number, padding: string, [key: string]: any }>(({ src, alt, width, height, padding, ...rest }, ref) => {
         const { readOnly, pageId, pageName, ...domRest } = rest;
+        // Use a wrapper div for padding, as next/image might not accept it directly depending on layout.
         return (
-            <div ref={ref} style={{ padding }} {...domRest}>
-                <img src={src} alt={alt} style={{ width: `${width}px`, height: `${height}px` }} className="max-w-full" />
+            <div ref={ref} style={{ padding, width: 'fit-content', height: 'fit-content' }} {...domRest}>
+                <Image src={src} alt={alt} width={width} height={height} className="max-w-full h-auto" />
             </div>
         );
     }),

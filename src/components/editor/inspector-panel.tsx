@@ -1,17 +1,21 @@
 
+import React, { Suspense } from 'react';
 import { PageComponent } from '@/lib/types';
 import { AnimatePresence, motion } from 'framer-motion';
-import { HeadingInspector } from './inspector-panels/heading-inspector';
-import { TextInspector } from './inspector-panels/text-inspector';
-import { ButtonInspector } from './inspector-panels/button-inspector';
-import { ImageInspector } from './inspector-panels/image-inspector';
-import { SectionInspector } from './inspector-panels/section-inspector';
 import { PageInspector } from './inspector-panels/page-inspector';
-import { NavbarInspector } from './inspector-panels/navbar-inspector';
-import { FooterInspector } from './inspector-panels/footer-inspector';
-import { ColumnsInspector } from './inspector-panels/columns-inspector';
-import { VideoInspector } from './inspector-panels/video-inspector';
-import { FormInspector } from './inspector-panels/form-inspector';
+import { Skeleton } from '../ui/skeleton';
+
+// Lazy load all inspector panels
+const HeadingInspector = React.lazy(() => import('./inspector-panels/heading-inspector').then(module => ({ default: module.HeadingInspector })));
+const TextInspector = React.lazy(() => import('./inspector-panels/text-inspector').then(module => ({ default: module.TextInspector })));
+const ButtonInspector = React.lazy(() => import('./inspector-panels/button-inspector').then(module => ({ default: module.ButtonInspector })));
+const ImageInspector = React.lazy(() => import('./inspector-panels/image-inspector').then(module => ({ default: module.ImageInspector })));
+const SectionInspector = React.lazy(() => import('./inspector-panels/section-inspector').then(module => ({ default: module.SectionInspector })));
+const NavbarInspector = React.lazy(() => import('./inspector-panels/navbar-inspector').then(module => ({ default: module.NavbarInspector })));
+const FooterInspector = React.lazy(() => import('./inspector-panels/footer-inspector').then(module => ({ default: module.FooterInspector })));
+const ColumnsInspector = React.lazy(() => import('./inspector-panels/columns-inspector').then(module => ({ default: module.ColumnsInspector })));
+const VideoInspector = React.lazy(() => import('./inspector-panels/video-inspector').then(module => ({ default: module.VideoInspector })));
+const FormInspector = React.lazy(() => import('./inspector-panels/form-inspector').then(module => ({ default: module.FormInspector })));
 
 interface InspectorPanelProps {
   selectedComponent: PageComponent | null;
@@ -34,6 +38,24 @@ const inspectorMap = {
   Form: FormInspector,
 };
 
+const InspectorLoader = () => (
+    <div className="space-y-4">
+        <Skeleton className="h-8 w-3/4" />
+        <div className="space-y-2">
+            <Skeleton className="h-4 w-1/4" />
+            <Skeleton className="h-10 w-full" />
+        </div>
+        <div className="space-y-2">
+            <Skeleton className="h-4 w-1/4" />
+            <Skeleton className="h-10 w-full" />
+        </div>
+        <div className="space-y-2">
+            <Skeleton className="h-4 w-1/4" />
+            <Skeleton className="h-10 w-full" />
+        </div>
+    </div>
+);
+
 export function InspectorPanel({ selectedComponent, onUpdateComponent, pageBackgroundColor, onUpdatePageBackgroundColor }: InspectorPanelProps) {
   const Inspector = selectedComponent ? inspectorMap[selectedComponent.type as keyof typeof inspectorMap] : null;
 
@@ -50,17 +72,19 @@ export function InspectorPanel({ selectedComponent, onUpdateComponent, pageBackg
             transition={{ duration: 0.2 }}
             className="h-full"
           >
-            {selectedComponent && Inspector ? (
-              <Inspector
-                component={selectedComponent}
-                onUpdate={onUpdateComponent}
-              />
-            ) : (
-              <PageInspector 
-                backgroundColor={pageBackgroundColor}
-                onUpdateBackgroundColor={onUpdatePageBackgroundColor}
-              />
-            )}
+            <Suspense fallback={<InspectorLoader />}>
+              {selectedComponent && Inspector ? (
+                <Inspector
+                  component={selectedComponent}
+                  onUpdate={onUpdateComponent}
+                />
+              ) : (
+                <PageInspector 
+                  backgroundColor={pageBackgroundColor}
+                  onUpdateBackgroundColor={onUpdatePageBackgroundColor}
+                />
+              )}
+            </Suspense>
           </motion.div>
         </AnimatePresence>
       </div>

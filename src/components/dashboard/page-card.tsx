@@ -13,9 +13,6 @@ interface PageCardProps {
 }
 
 export function PageCard({ pageId, pageName }: PageCardProps) {
-  // This component is now simpler. It receives all necessary data as props.
-  // No more data fetching is needed here.
-
   return (
     <Card className="flex flex-col overflow-hidden transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-2 group">
       <CardHeader>
@@ -29,6 +26,7 @@ export function PageCard({ pageId, pageName }: PageCardProps) {
           src={`https://picsum.photos/seed/${pageId}/400/225`}
           alt={`Preview of ${pageName}`}
           fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           className="object-cover transition-transform duration-300 group-hover:scale-105"
           data-ai-hint="website landing-page"
         />
