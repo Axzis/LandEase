@@ -1,5 +1,5 @@
-import {genkit, Plugin} from 'genkit';
-import {googleAI, GoogleAIPlugin} from '@genkit-ai/googleai';
+import {genkit, type Plugin} from 'genkit';
+import {googleAI, type GoogleAIPlugin} from '@genkit-ai/googleai';
 
 // Load environment variables from .env file
 import {config} from 'dotenv';
@@ -7,7 +7,7 @@ config();
 
 let googleAiPlugin: Plugin<[GoogleAIPlugin] | []>;
 
-// Check if the environment variable exists and is not an empty string
+// Check if the environment variable exists AND is not an empty string
 if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON && process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON.trim() !== '') {
   try {
     const serviceAccount = JSON.parse(
@@ -20,7 +20,7 @@ if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON && process.env.GOOGLE_APPLIC
       },
     });
   } catch (e) {
-    console.error('Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON', e);
+    console.error('Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON. Using default Genkit initialization.', e);
     // Fallback to default initialization if JSON parsing fails
     googleAiPlugin = googleAI();
   }
@@ -31,5 +31,6 @@ if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON && process.env.GOOGLE_APPLIC
 
 export const ai = genkit({
   plugins: [googleAiPlugin],
-  model: 'googleai/gemini-2.0-flash',
+  // You can specify a default model here if needed
+  // model: 'googleai/gemini-1.5-flash-latest',
 });

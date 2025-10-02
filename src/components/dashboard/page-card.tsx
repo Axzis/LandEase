@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { doc } from 'firebase/firestore';
 import { useDoc, useFirestore } from '@/firebase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -9,7 +10,6 @@ import { formatDistanceToNow } from 'date-fns';
 import { Pencil } from 'lucide-react';
 import Image from 'next/image';
 import { Skeleton } from '../ui/skeleton';
-import { useMemo } from 'react';
 
 interface Page {
   id: string;
@@ -24,6 +24,7 @@ interface PageCardProps {
 export function PageCard({ pageId }: PageCardProps) {
   const firestore = useFirestore();
   
+  // Correctly memoize the document reference.
   const pageDocRef = useMemo(() => {
       if (!firestore || !pageId) return null;
       return doc(firestore, 'pages', pageId);
@@ -68,6 +69,7 @@ export function PageCard({ pageId }: PageCardProps) {
     );
   }
 
+  // Use optional chaining for safety, though page is guaranteed to exist here.
   const lastUpdatedString = page.lastUpdated
     ? formatDistanceToNow(page.lastUpdated.toDate(), { addSuffix: true })
     : 'N/A';

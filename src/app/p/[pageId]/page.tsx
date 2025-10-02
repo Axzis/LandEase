@@ -1,34 +1,40 @@
 'use client';
 
-import { EditorCanvas } from '@/components/editor/editor-canvas';
+import React, { useMemo } from 'react';
 import { notFound } from 'next/navigation';
 import { doc } from 'firebase/firestore';
 import { useDoc, useFirestore } from '@/firebase';
 import { Loader2 } from 'lucide-react';
-import React, { useMemo } from 'react';
+import { EditorCanvas } from '@/components/editor/editor-canvas';
 
+// Define a clear type for the expected page data
 interface PageData {
-    content: any[];
-    pageBackgroundColor: string;
-    pageName: string;
-    published: boolean;
-    userId: string;
+  content: any[];
+  pageBackgroundColor: string;
+  pageName: string;
+  published: boolean;
+  userId: string;
 }
 
 export default function PublicPage({ params }: { params: Promise<{ pageId: string }> }) {
   const firestore = useFirestore();
+
   // Next.js now provides params as a promise in client components.
-  // We must use `React.use` to unwrap it.
+  // We must use `React.use` to unwrap it. This is the correct modern approach.
   const resolvedParams = React.use(params);
   const { pageId } = resolvedParams;
   
+  // Memoize the document reference to prevent re-renders.
+  // This is stable and depends only on firestore and pageId.
   const pageDocRef = useMemo(() => {
     if (!firestore || !pageId) return null;
     return doc(firestore, 'pages', pageId);
   }, [firestore, pageId]);
 
+  // The useDoc hook handles the real-time subscription.
   const { data: pageData, isLoading, error } = useDoc<PageData>(pageDocRef);
 
+  // 1. Show a loading state while data is being fetched.
   if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -37,24 +43,25 @@ export default function PublicPage({ params }: { params: Promise<{ pageId: strin
     );
   }
 
-  // If there's an error (like permission-denied), show not found.
+  // 2. If an error occurs (e.g., permission-denied), show a 404 page.
+  // This is a critical step for security.
   if (error) {
      console.error("Error loading page:", error);
-     // This is critical. A permission error from useDoc needs to result in a 404.
      notFound();
   }
 
-  // If data is null after loading and there's no error, it means the document doesn't exist.
+  // 3. If loading is finished and there's still no data, the document doesn't exist.
   if (!pageData) {
     notFound();
   }
 
-  // CRITICAL: Manually enforce that only 'published' pages can be viewed.
-  // This adds a layer of client-side security, complementing the Firestore rules.
+  // 4. CRITICAL: After confirming data exists, check if it's published.
+  // This prevents showing unpublished content.
   if (pageData.published !== true) {
     notFound();
   }
   
+  // 5. If all checks pass, render the page.
   return (
     <div style={{ backgroundColor: pageData.pageBackgroundColor || '#FFFFFF' }}>
       <EditorCanvas
