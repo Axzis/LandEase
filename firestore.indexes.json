@@ -1,0 +1,15 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "publishedPages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
