@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import React, { use, useMemo } from 'react';
@@ -14,14 +12,12 @@ import { PublishedPage } from '@/lib/types';
 export default function PublicPage({ params }: { params: { pageId: string } }) {
   const firestore = useFirestore();
   
-  // PERBAIKAN 1: Gunakan React.use() untuk mendapatkan params
   const resolvedParams = use(params);
   const { pageId } = resolvedParams;
   
   const pageDocRef = useMemo(() => {
     if (!firestore || !pageId) return null;
     
-    // PERBAIKAN 2: Pastikan ini mengarah ke 'publishedPages'
     return doc(firestore, 'publishedPages', pageId);
   }, [firestore, pageId]);
 
@@ -35,16 +31,11 @@ export default function PublicPage({ params }: { params: { pageId: string } }) {
     );
   }
 
-  // Jika ada error ATAU jika loading selesai dan masih tidak ada data,
-  // itu berarti halaman tersebut tidak ada atau tidak dipublikasikan.
   if (error || !pageData) {
      if (error) console.error("Error loading public page:", error.message);
      notFound();
   }
   
-  // Tidak perlu memeriksa pageData.published, karena keberadaannya di koleksi ini
-  // mengonfirmasi bahwa halaman tersebut bersifat publik.
-
   return (
     <div style={{ backgroundColor: pageData.pageBackgroundColor || '#FFFFFF' }}>
       <EditorCanvas
@@ -56,7 +47,3 @@ export default function PublicPage({ params }: { params: { pageId: string } }) {
     </div>
   );
 }
-
-    
-
-    
