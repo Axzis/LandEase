@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { PageContent, PageComponent, ComponentType, FormField, ColumnsComponent } from '@/lib/types';
 import { ComponentWrapper } from './renderable/component-wrapper';
 import { cn } from '@/lib/utils';
 import React from 'react';
-import { Rocket } from 'lucide-react';
+import { Rocket, Image as ImageIcon } from 'lucide-react';
 import { Button as UIButton } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -88,7 +89,14 @@ const componentMap: { [key: string]: React.ComponentType<any> } = {
         // Use a wrapper div for padding, as next/image might not accept it directly depending on layout.
         return (
             <div ref={ref} style={{ padding, width: 'fit-content', height: 'fit-content' }} {...domRest}>
-                <Image src={src} alt={alt} width={width} height={height} className="max-w-full h-auto" />
+                {src ? (
+                    <Image src={src} alt={alt} width={width} height={height} className="max-w-full h-auto" />
+                ) : (
+                    <div className="bg-muted text-muted-foreground flex flex-col items-center justify-center" style={{width: width || 200, height: height || 150}}>
+                        <ImageIcon className="w-8 h-8" />
+                        <span>Image</span>
+                    </div>
+                )}
             </div>
         );
     }),
