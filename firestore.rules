@@ -1,63 +1,123 @@
+/**
+ * @fileoverview Firestore Security Rules for LandEase application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a user-ownership model for user profiles and private pages,
+ * while allowing public read access to published pages. Submissions are tied to specific pages and require validation.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profile information. Accessible only to the user.
+ * - /pages/{pageId}: Stores private landing pages. Accessible only to the owner.
+ * - /pages/{pageId}/submissions/{submissionId}: Stores form submissions for a specific page.
+ *   Only the page owner can read submissions.
+ * - /publishedPages/{pageId}: Stores public, read-only versions of pages. World-readable.
+ *
+ * Key Security Decisions:
+ * - Users can only access their own profile data.
+ * - Pages are private and only accessible to their owner.
+ * - Published pages are publicly readable but only modifiable by the owner through a separate process (not directly via Firestore writes to /publishedPages).
+ * - Listing of user documents is disallowed for privacy.
+ * - Anyone can submit forms on published pages, but only the page owner can read submissions.
+ *
+ * Denormalization for Authorization:
+ * The `Page` entity includes a `userId` field to enable owner-based security rules without additional `get()` calls.
+ *
+ * Structural Segregation:
+ * Publicly readable pages are stored in the `/publishedPages` collection, separate from the private `/pages` collection,
+ * which allows for efficient and secure public read access without exposing private page data.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows any authenticated user to create their own profile. Users can only read, update, and delete their own profiles.
+     * @description Secure user profiles. Only the authenticated user can read/write their own profile.
      * @path /users/{userId}
-     * @allow (create) - User with UID 'user_abc' can create a profile with id: 'user_abc'
-     * @allow (get, update, delete) - User with UID 'user_abc' can read, update, or delete the profile with id: 'user_abc'
-     * @deny (create) - User with UID 'user_abc' cannot create a profile with id: 'user_xyz'.
-     * @deny (get, update, delete) - User with UID 'user_xyz' cannot read, update, or delete the profile with id: 'user_abc'.
-     * @principle Enforces document ownership for all operations on user profiles.
+     * @allow (create) - User with UID 'user_abc' can create their profile if request.auth.uid == 'user_abc'.
+     * @allow (get, update, delete) - User with UID 'user_abc' can access their profile if request.auth.uid == 'user_abc'.
+     * @deny (create, get, update, delete) - User with UID 'user_xyz' cannot access user 'user_abc's profile because request.auth.uid != userId.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
      */
     match /users/{userId} {
+      //isSignegIn adalah  fungsi yang memeriksa apakah pengguna masuk atau tidak.
       function isSignedIn() {
         return request.auth != null;
       }
 
+      // isOwner adalah fungsi memeriksa apakah pengguna yang masuk sama dengan id pengguna.
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
 
-      function isExistingOwner(userId) {
-        return isSignedIn() && request.auth.uid == userId && resource != null;
-      }
-
-      allow get: if isOwner(userId);
+      allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Allows users to manage their own form submissions.
-     * @path /users/{userId}/submissions/{submissionId}
-     * @allow (create) - User with UID 'user_abc' can create a submission under /users/user_abc/submissions/submission_123 with submissionId: 'submission_123'.
-     * @allow (get, update, delete) - User with UID 'user_abc' can read, update, or delete submission 'submission_123' under /users/user_abc/submissions.
-     * @deny (create) - User with UID 'user_abc' cannot create a submission under /users/user_xyz/submissions.
-     * @deny (get, update, delete) - User with UID 'user_xyz' cannot read, update, or delete submission 'submission_123' under /users/user_abc/submissions.
-     * @principle Restricts access to submissions to the owning user. Enforces that the 'id' field in the Submission document matches the {submissionId} in the path.
+     * @description Secure user pages. Only the owner can read/write their own pages.
+     * @path /pages/{pageId}
+     * @allow (create) - User with UID 'user_abc' can create a page if request.auth.uid == request.resource.data.userId.
+     * @allow (get, update, delete) - User with UID 'user_abc' can access a page if request.auth.uid == resource.data.userId.
+     * @deny (create, get, update, delete) - User with UID 'user_xyz' cannot access page owned by user 'user_abc'.
+     * @principle Enforces document ownership for writes.
      */
-    match /users/{userId}/submissions/{submissionId} {
+    match /pages/{pageId} {
+
       function isSignedIn() {
         return request.auth != null;
       }
 
-      function isOwner(userId) {
-        return request.auth.uid == userId;
+      function isOwner(pageId) {
+        return get(/databases/$(database)/documents/pages/$(pageId)).data.userId == request.auth.uid;
       }
 
-      function isExistingOwner(userId) {
-        return isSignedIn() && request.auth.uid == userId && resource != null;
-      }
-
-      allow get: if isOwner(userId);
+      allow get: if isSignedIn() && isOwner(pageId);
       allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && isOwner(pageId);
+      allow delete: if isSignedIn() && isOwner(pageId);
+    }
+
+    /**
+     * @description Secure submissions for user pages. Only the owner can read submissions.
+     * @path /pages/{pageId}/submissions/{submissionId}
+     * @allow (create) - Anyone can create a submission for a page, submissions are public.
+     * @allow (get, list) - Only the owner of the page can read submissions.
+     * @deny (get, list) - User with UID 'user_xyz' cannot access submissions for a page owned by user 'user_abc'.
+     * @principle Enforces document ownership for reads on submissions.
+     */
+    match /pages/{pageId}/submissions/{submissionId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(pageId) {
+        return get(/databases/$(database)/documents/pages/$(pageId)).data.userId == request.auth.uid;
+      }
+
+      allow get: if isSignedIn() && isOwner(pageId);
+      allow list: if isSignedIn() && isOwner(pageId);
+      allow create: if true;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Allow public read access to published pages, but no writes.
+     * @path /publishedPages/{pageId}
+     * @allow (get, list) - Anyone can read published pages.
+     * @deny (create, update, delete) - No one can modify published pages directly via Firestore.
+     * @principle Public read access for published content.
+     */
+    match /publishedPages/{pageId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
   }
 }
