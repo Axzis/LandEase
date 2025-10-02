@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BaseInspector } from './base-inspector';
 import { PaddingInspector } from './padding-inspector';
+import { ImageUploader } from '../image-uploader';
+import { Separator } from '@/components/ui/separator';
 
 interface ImageInspectorProps {
   component: ImageComponent;
@@ -19,17 +21,17 @@ export function ImageInspector({ component, onUpdate }: ImageInspectorProps) {
   return (
     <BaseInspector title="Image">
         <div className="space-y-2">
-            <Label htmlFor={`src-${id}`}>Image URL</Label>
-            <Input
-            id={`src-${id}`}
-            value={src}
-            onChange={(e) => onUpdate(id, { src: e.target.value })}
-            placeholder="https://example.com/image.png"
+            <Label htmlFor={`src-${id}`}>Image</Label>
+            <ImageUploader
+              value={src}
+              onChange={(newSrc) => onUpdate(id, { src: newSrc })}
             />
         </div>
+        
+        <Separator />
 
       <div className="space-y-2">
-        <Label htmlFor={`alt-${id}`}>Alt Text</Label>
+        <Label htmlFor={`alt-${id}`}>Alt Text (for SEO)</Label>
         <Input
           id={`alt-${id}`}
           value={alt}

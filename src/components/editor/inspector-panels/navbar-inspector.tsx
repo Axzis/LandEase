@@ -8,6 +8,7 @@ import { BaseInspector } from './base-inspector';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { ImageUploader } from '../image-uploader';
 
 interface NavbarInspectorProps {
   component: NavbarComponent;
@@ -67,12 +68,10 @@ export function NavbarInspector({ component, onUpdate }: NavbarInspectorProps) {
       </div>
 
        <div className="space-y-2">
-        <Label htmlFor={`logoImageUrl-${id}`}>Logo Image URL (optional)</Label>
-        <Input
-          id={`logoImageUrl-${id}`}
-          value={logoImageUrl}
-          onChange={(e) => onUpdate(id, { logoImageUrl: e.target.value })}
-          placeholder="https://example.com/logo.png"
+        <Label htmlFor={`logoImageUrl-${id}`}>Logo Image (optional)</Label>
+        <ImageUploader 
+            value={logoImageUrl}
+            onChange={(newUrl) => onUpdate(id, { logoImageUrl: newUrl })}
         />
       </div>
 

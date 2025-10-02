@@ -4,6 +4,7 @@ import { BaseInspector } from './base-inspector';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+import { ImageUploader } from '../image-uploader';
 
 interface PageInspectorProps {
     backgroundColor: string;
@@ -38,12 +39,10 @@ export function PageInspector({ backgroundColor, onUpdateBackgroundColor, thumbn
             <Separator />
             
             <div className="space-y-2">
-                <Label htmlFor="thumbnail-url">Thumbnail URL</Label>
-                <Input
-                    id="thumbnail-url"
+                <Label htmlFor="thumbnail-url">Thumbnail Image</Label>
+                <ImageUploader 
                     value={thumbnailUrl}
-                    onChange={(e) => onUpdateThumbnailUrl(e.target.value)}
-                    placeholder="https://example.com/thumbnail.png"
+                    onChange={onUpdateThumbnailUrl}
                 />
             </div>
 
