@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import React from 'react';
+import { Label } from '@/components/ui/label'; // <-- TAMBAHKAN BARIS INI
 
 // Ganti dengan kredensial ImageKit Anda dari file .env.local
 const publicKey = process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY;
