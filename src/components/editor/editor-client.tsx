@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useTransition } from 'react';
-import { doc, setDoc, serverTimestamp, writeBatch } from 'firebase/firestore'; // Pastikan 'writeBatch' diimpor
+import { doc, setDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { useFirestore, useDoc, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -24,7 +24,6 @@ import { Label } from '../ui/label';
 import Link from 'next/link';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -41,6 +40,7 @@ interface EditorClientProps {
 const generateId = () => `comp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
 const createNewComponent = (type: ComponentType): PageComponent => {
+    // ... (Fungsi ini tidak perlu diubah, biarkan seperti aslinya)
     const id = generateId();
     switch (type) {
       case 'Section':
@@ -65,7 +65,7 @@ const createNewComponent = (type: ComponentType): PageComponent => {
       case 'Video':
         return { id, type: 'Video', props: { src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', padding: '0px' } };
       case 'Form':
-        return { 
+        return {
           id, 
           type: 'Form', 
           props: { 
@@ -77,24 +77,23 @@ const createNewComponent = (type: ComponentType): PageComponent => {
               { id: 'field_1', name: 'name', label: 'Name', type: 'text', placeholder: 'Your Name', required: true },
               { id: 'field_2', name: 'email', label: 'Email', type: 'email', placeholder: 'you@example.com', required: true },
             ]
-          } 
+          }
         };
       default:
         throw new Error(`Unknown component type: ${type}`);
     }
 };
 
+
 export function EditorClient({ pageId }: EditorClientProps) {
+  // ... (semua state dan hooks lainnya tidak perlu diubah)
   const firestore = useFirestore();
   const { user, loading: isUserLoading } = useUser();
-  
   const pageDocRef = useMemo(() => {
     if (!firestore || !pageId) return null;
     return doc(firestore, 'pages', pageId);
   }, [firestore, pageId]);
-
   const { data: pageData, isLoading: isPageLoading, error: pageError } = useDoc(pageDocRef);
-
   const [pageName, setPageName] = useState('');
   const [content, setContent] = useState<PageContent>([]);
   const [isPublished, setIsPublished] = useState(false);
@@ -105,8 +104,9 @@ export function EditorClient({ pageId }: EditorClientProps) {
   const { toast } = useToast();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  
-  useEffect(() => {
+
+  // ... (semua useEffect dan fungsi-fungsi lainnya biarkan seperti aslinya, kecuali handleSave)
+    useEffect(() => {
     if (pageData) {
       setPageName(pageData.pageName || '');
       setContent(pageData.content || []);
@@ -114,7 +114,6 @@ export function EditorClient({ pageId }: EditorClientProps) {
       setPageBackgroundColor(pageData.pageBackgroundColor || '#FFFFFF');
     }
   }, [pageData]);
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.key === 'Delete' || e.key === 'Backspace')) {
@@ -131,23 +130,20 @@ export function EditorClient({ pageId }: EditorClientProps) {
         }
       }
     };
-
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [selectedComponentId, content]);
-
+  }, [selectedComponentId, content]); 
   const handleSelectComponent = (id: string | null) => {
     setSelectedComponentId(id);
   };
-  
-  const findComponent = (components: PageContent, id: string): { component: PageComponent | null, parent: PageContent | Column[] | null, index: number, parentComponent?: PageComponent } => {
+    const findComponent = (components: PageContent, id: string): { component: PageComponent | null, parent: PageContent | Column[] | null, index: number, parentComponent?: PageComponent } => {
     for (let i = 0; i < components.length; i++) {
         const component = components[i];
         if (component.id === id) return { component, parent: components, index: i };
         
-        if (component.type === 'Columns' && component.columns) {
+        if (component.type === 'Columns') {
             for (const column of component.columns) {
                 const found = findComponent(column.children, id);
                 if (found.component) {
@@ -163,9 +159,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
     }
     return { component: null, parent: null, index: -1 };
   };
-
   const selectedComponent = selectedComponentId ? findComponent(content, selectedComponentId).component : null;
-
   const updateComponentProps = (id: string, newProps: any) => {
     const newContent = JSON.parse(JSON.stringify(content));
     
@@ -183,7 +177,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
           return true;
         }
 
-        if (component.type === 'Columns' && component.columns) {
+        if (component.type === 'Columns') {
           for (const col of component.columns) {
             if (updateRecursively(col.children)) return true;
           }
@@ -198,7 +192,6 @@ export function EditorClient({ pageId }: EditorClientProps) {
     setContent(newContent);
     setIsDirty(true);
   };
-
   const deleteComponent = (id: string) => {
     if (selectedComponentId === id) {
       setSelectedComponentId(null);
@@ -206,7 +199,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
     const deleteRecursively = (items: PageComponent[]): PageComponent[] => {
         return items.filter(item => {
             if (item.id === id) return false;
-            if (item.type === 'Columns' && item.columns) {
+            if (item.type === 'Columns') {
                 item.columns = item.columns.map(col => ({...col, children: deleteRecursively(col.children)}));
             } else if (item.children) {
                 item.children = deleteRecursively(item.children);
@@ -217,13 +210,12 @@ export function EditorClient({ pageId }: EditorClientProps) {
     setContent(prev => deleteRecursively(JSON.parse(JSON.stringify(prev))));
     setIsDirty(true);
   };
-
   const handleAddComponent = (type: ComponentType, parentId: string | null, targetId: string | null = null, position: 'top' | 'bottom' = 'top', columnIndex?: number) => {
     const newComponent = createNewComponent(type);
     
     const addRecursively = (items: PageComponent[]): PageComponent[] => {
       if (parentId === null) {
-        if (targetId === null) {
+        if (targetId === null) { 
           return [...items, newComponent];
         }
         const targetIndex = items.findIndex(item => item.id === targetId);
@@ -237,7 +229,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
 
       return items.map(item => {
         if (item.id === parentId) {
-            if (item.type === 'Columns' && item.columns && columnIndex !== undefined) {
+            if (item.type === 'Columns' && columnIndex !== undefined) {
                 const newColumns = [...item.columns];
                 const targetColumn = newColumns[columnIndex];
                 if (targetColumn) {
@@ -247,7 +239,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
                     } else if (targetIndex !== -1) {
                         targetColumn.children.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, newComponent);
                     } else {
-                        targetColumn.children.push(newComponent);
+                        targetColumn.children.push(newComponent); 
                     }
                 }
                 return { ...item, columns: newColumns };
@@ -265,7 +257,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
                 }
                 return { ...item, children: newChildren };
             }
-        } else if (item.type === 'Columns' && item.columns) {
+        } else if (item.type === 'Columns') {
             const newColumns = item.columns.map(col => ({...col, children: addRecursively(col.children)}));
             return {...item, columns: newColumns};
         } else if (item.children) {
@@ -279,19 +271,16 @@ export function EditorClient({ pageId }: EditorClientProps) {
     setSelectedComponentId(newComponent.id);
     setIsDirty(true);
   };
-
   const handleMoveComponent = (draggedId: string, targetId: string | null, parentId: string | null, position: 'top' | 'bottom', columnIndex?: number) => {
     if (draggedId === targetId) return;
-
     let componentToMove: PageComponent | null = null;
-  
     const removeComponent = (items: PageComponent[]): PageComponent[] => {
       return items.filter(item => {
         if (item.id === draggedId) {
           componentToMove = item;
           return false;
         }
-        if (item.type === 'Columns' && item.columns) {
+        if (item.type === 'Columns') {
            item.columns = item.columns.map(col => ({...col, children: removeComponent(col.children)}));
         } else if (item.children) {
            item.children = removeComponent(item.children);
@@ -299,15 +288,13 @@ export function EditorClient({ pageId }: EditorClientProps) {
         return true;
       });
     };
-
     const contentAfterRemoval = removeComponent(JSON.parse(JSON.stringify(content)));
     if (!componentToMove) return;
-
     const insertComponent = (items: PageComponent[]): PageComponent[] => {
       if (parentId) {
         return items.map(item => {
           if (item.id === parentId) {
-            if (item.type === 'Columns' && item.columns && columnIndex !== undefined) {
+            if (item.type === 'Columns' && columnIndex !== undefined) {
                 const newColumns = [...item.columns];
                 const targetColumn = newColumns[columnIndex];
                 if (targetColumn) {
@@ -318,7 +305,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
                         } else {
                             targetColumn.children.push(componentToMove!);
                         }
-                    } else {
+                    } else { 
                         targetColumn.children.push(componentToMove!);
                     }
                 }
@@ -337,7 +324,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
                 }
                 return { ...item, children: newChildren };
             }
-          } else if (item.type === 'Columns' && item.columns) {
+          } else if (item.type === 'Columns') {
             const newColumns = item.columns.map(col => ({...col, children: insertComponent(col.children)}));
             return { ...item, columns: newColumns };
           } else if (item.children) {
@@ -345,17 +332,17 @@ export function EditorClient({ pageId }: EditorClientProps) {
           }
           return item;
         });
-      } else {
+      } else { 
           const newItems = [...items];
           if (targetId) {
             const targetIndex = newItems.findIndex(c => c.id === targetId);
             if (targetIndex !== -1) {
                 newItems.splice(targetIndex + (position === 'bottom' ? 1: 0), 0, componentToMove!);
             } else {
-                newItems.push(componentToMove!);
+                newItems.push(componentToMove!); 
             }
           } else {
-            newItems.push(componentToMove!);
+            newItems.push(componentToMove!); 
           }
           return newItems;
       }
@@ -364,56 +351,55 @@ export function EditorClient({ pageId }: EditorClientProps) {
     setContent(insertComponent(contentAfterRemoval));
     setIsDirty(true);
   };
-
+  
   const handleSave = async (publishedState: boolean) => {
     if (!pageDocRef || !user || !firestore) return;
     setIsSaving(true);
-
+    
     try {
-        const batch = writeBatch(firestore);
+      const batch = writeBatch(firestore);
 
-        const pageDataToSave = {
-            userId: user.uid,
-            pageName,
-            content: JSON.parse(JSON.stringify(content)),
-            lastUpdated: serverTimestamp(),
-            pageBackgroundColor,
-            published: publishedState,
+      const pageDataToSave = {
+        userId: user.uid,
+        pageName,
+        content: JSON.parse(JSON.stringify(content)),
+        lastUpdated: serverTimestamp(),
+        pageBackgroundColor,
+        published: publishedState,
+      };
+      batch.set(pageDocRef, pageDataToSave, { merge: true });
+
+      const publicPageDocRef = doc(firestore, 'publishedPages', pageId);
+      if (publishedState) {
+        const publicPageData = {
+          content: JSON.parse(JSON.stringify(content)),
+          pageName,
+          pageBackgroundColor,
+          userId: user.uid,
         };
-        batch.set(pageDocRef, pageDataToSave, { merge: true });
+        batch.set(publicPageDocRef, publicPageData);
+      } else {
+        batch.delete(publicPageDocRef);
+      }
 
-        const publicPageDocRef = doc(firestore, 'publishedPages', pageId);
-        if (publishedState) {
-            const publicPageData = {
-                content: JSON.parse(JSON.stringify(content)),
-                pageName,
-                pageBackgroundColor,
-                userId: user.uid,
-            };
-            batch.set(publicPageDocRef, publicPageData);
-        } else {
-            batch.delete(publicPageDocRef);
-        }
+      await batch.commit();
 
-        await batch.commit();
-
-        toast({
-            title: 'Page Saved!',
-            description: 'Your changes have been successfully saved.',
-        });
-        setIsDirty(false);
+      toast({
+        title: 'Page Saved!',
+        description: 'Your changes have been successfully saved.',
+      });
+      setIsDirty(false);
     } catch (error) {
-        console.error("Error saving page to Firestore: ", error);
-        toast({
-            variant: 'destructive',
-            title: 'Save Failed',
-            description: 'Could not save your changes to the database.',
-        });
+      console.error("Error saving page to Firestore: ", error);
+      toast({
+        variant: 'destructive',
+        title: 'Save Failed',
+        description: 'Could not save your changes. Please check your Firestore rules.',
+      });
     } finally {
-        setIsSaving(false);
+      setIsSaving(false);
     }
   };
-
 
   const handlePublishToggle = (published: boolean) => {
     setIsPublished(published);
@@ -436,6 +422,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
     }
   }, [pageId]);
 
+  // ... (sisa JSX tidak perlu diubah)
   if (isUserLoading || (isPageLoading && pageDocRef)) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -467,6 +454,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
       </div>
     )
   }
+
 
   return (
     <TooltipProvider>

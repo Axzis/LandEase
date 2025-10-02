@@ -1,27 +1,34 @@
 'use client';
 
-import React, { use, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { notFound } from 'next/navigation';
 import { doc } from 'firebase/firestore';
 import { useDoc, useFirestore } from '@/firebase';
 import { Loader2 } from 'lucide-react';
 import { EditorCanvas } from '@/components/editor/editor-canvas';
-import { PublishedPage } from '@/lib/types';
+import { PageContent } from '@/lib/types';
 
+interface PublicPageData {
+  content: PageContent;
+  pageBackgroundColor: string;
+  pageName: string;
+  userId: string;
+}
 
 export default function PublicPage({ params }: { params: { pageId: string } }) {
   const firestore = useFirestore();
   
-  const resolvedParams = use(params);
+  const resolvedParams = React.use(params);
   const { pageId } = resolvedParams;
   
   const pageDocRef = useMemo(() => {
     if (!firestore || !pageId) return null;
     
+    // Pastikan ini mengarah ke koleksi 'publishedPages'
     return doc(firestore, 'publishedPages', pageId);
   }, [firestore, pageId]);
 
-  const { data: pageData, isLoading, error } = useDoc<PublishedPage>(pageDocRef);
+  const { data: pageData, isLoading, error } = useDoc<PublicPageData>(pageDocRef);
 
   if (isLoading) {
     return (
@@ -33,7 +40,7 @@ export default function PublicPage({ params }: { params: { pageId: string } }) {
 
   if (error || !pageData) {
      if (error) console.error("Error loading public page:", error.message);
-     notFound();
+     return notFound();
   }
   
   return (
@@ -41,7 +48,7 @@ export default function PublicPage({ params }: { params: { pageId: string } }) {
       <EditorCanvas
         content={pageData.content}
         readOnly
-        pageId={pageData.pageId}
+        pageId={pageId}
         pageName={pageData.pageName}
       />
     </div>
