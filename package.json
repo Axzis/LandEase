@@ -48,7 +48,6 @@
     "firebase": "^11.9.1",
     "framer-motion": "^11.3.19",
     "genkit": "^1.19.3",
-    "imagekit": "^5.0.1",
     "imagekit-javascript": "^2.0.0",
     "lucide-react": "^0.475.0",
     "next": "15.3.3",
