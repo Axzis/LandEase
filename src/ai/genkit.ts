@@ -2,9 +2,8 @@
 import {genkit, type Plugin} from 'genkit';
 import {googleAI, type GoogleAIPlugin} from '@genkit-ai/googleai';
 
-// Load environment variables from .env file
-import {config} from 'dotenv';
-config();
+// Next.js handles .env file loading automatically.
+// The manual import and call to dotenv is not needed and can cause issues.
 
 let googleAiPlugin: Plugin<[GoogleAIPlugin] | []>;
 const credsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
