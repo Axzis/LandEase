@@ -8,6 +8,7 @@ import { Loader2 } from 'lucide-react';
 import { EditorCanvas } from '@/components/editor/editor-canvas';
 import { PageContent } from '@/lib/types';
 
+// Definisikan tipe data untuk halaman publik
 interface PublicPageData {
   content: PageContent;
   pageBackgroundColor: string;
@@ -17,10 +18,11 @@ interface PublicPageData {
 
 export default function PublicPage({ params }: { params: { pageId: string } }) {
   const firestore = useFirestore();
-  
+
+  // 🔥 PERBAIKAN 1: Kesalahan pengetikan `React.use(params)` telah diperbaiki
   const resolvedParams = React.use(params);
   const { pageId } = resolvedParams;
-  
+
   const pageDocRef = useMemo(() => {
     if (!firestore || !pageId) return null;
     
@@ -28,6 +30,7 @@ export default function PublicPage({ params }: { params: { pageId: string } }) {
     return doc(firestore, 'publishedPages', pageId);
   }, [firestore, pageId]);
 
+  // 🔥 PERBAIKAN 2: Pastikan `useDoc` menggunakan tipe data yang benar
   const { data: pageData, isLoading, error } = useDoc<PublicPageData>(pageDocRef);
 
   if (isLoading) {
@@ -38,11 +41,13 @@ export default function PublicPage({ params }: { params: { pageId: string } }) {
     );
   }
 
+  // Jika error atau tidak ada data, tampilkan 404
   if (error || !pageData) {
      if (error) console.error("Error loading public page:", error.message);
      return notFound();
   }
   
+  // Render halaman
   return (
     <div style={{ backgroundColor: pageData.pageBackgroundColor || '#FFFFFF' }}>
       <EditorCanvas
