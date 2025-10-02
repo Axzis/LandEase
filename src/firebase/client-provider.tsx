@@ -4,20 +4,11 @@ import React, { useMemo, type ReactNode } from 'react';
 import { AuthProvider } from '@/firebase/auth/use-user';
 import { FirebaseProvider } from '@/firebase/provider';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
+import { firebaseConfig } from '@/firebase/config'; // <-- Impor dari file config
 
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
-
-// 🔥 KONFIGURASI YANG SUDAH DIPERBAIKI SESUAI DATA ANDA 🔥
-const firebaseConfig = {
-  apiKey: "AIzaSyDrWsPeG-OPyqkDc8di0zxLGXRd7xMW_6I",
-  authDomain: "landease-1g97g.firebaseapp.com",
-  projectId: "landease-1g97g",
-  storageBucket: "landease-1g97g.firebasestorage.app", // <- Perbaikan di sini
-  messagingSenderId: "121206095671",
-  appId: "1:121206095671:web:4abd4a6ea473c72fb0e4b2"
-};
 
 interface FirebaseServices {
   firebaseApp: FirebaseApp;
@@ -27,11 +18,11 @@ interface FirebaseServices {
 
 function initializeFirebase(): FirebaseServices | null {
   if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-    console.error("Firebase config is missing or invalid!");
+    console.error("Variabel lingkungan Firebase (NEXT_PUBLIC_FIREBASE_*) tidak diatur. Periksa file .env.local Anda.");
     return null;
   }
 
-  const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+  const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
   
   return {
     firebaseApp: app,
@@ -40,20 +31,16 @@ function initializeFirebase(): FirebaseServices | null {
   };
 }
 
-interface FirebaseClientProviderProps {
-  children: ReactNode;
-}
-
-export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
+export function FirebaseClientProvider({ children }: { children: ReactNode }) {
   const firebaseServices = useMemo(() => initializeFirebase(), []);
 
   if (!firebaseServices) {
      return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center p-4">
-            <h2 className="text-2xl font-bold text-destructive mb-2">Firebase Not Configured</h2>
+            <h2 className="text-2xl font-bold text-destructive mb-2">Firebase Tidak Terkonfigurasi</h2>
             <p className="text-muted-foreground">
-                Firebase configuration is missing or invalid. Please check your client-provider file.
+                Variabel lingkungan Firebase tidak diatur. Pastikan file .env.local ada dan sudah benar.
             </p>
         </div>
       </div>
