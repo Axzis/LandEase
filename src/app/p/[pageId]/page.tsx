@@ -12,7 +12,7 @@ import { PublishedPage } from '@/lib/types';
 
 export default function PublicPage({ params }: { params: { pageId: string } }) {
   const firestore = useFirestore();
-  const { pageId } = React.use(params);
+  const { pageId } = params;
   
   const pageDocRef = useMemo(() => {
     if (!firestore || !pageId) return null;
@@ -33,7 +33,7 @@ export default function PublicPage({ params }: { params: { pageId: string } }) {
   // If there's an error OR if loading is done and there's still no data,
   // it means the page either doesn't exist or isn't published.
   if (error || !pageData) {
-     if (error) console.error("Error loading published page:", error.message);
+     if (error) console.error("Error loading public page:", error.message);
      notFound();
   }
   

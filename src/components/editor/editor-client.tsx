@@ -376,57 +376,56 @@ export function EditorClient({ pageId }: EditorClientProps) {
 
 
   const handleSave = async (publishedState: boolean) => {
-    if (!firestore || !user) {
-      toast({ variant: 'destructive', title: 'Error', description: 'User or Firestore not available.' });
-      return;
-    }
+    if (!pageDocRef || !user || !firestore) return;
     setIsSaving(true);
-  
+    
     try {
       const batch = writeBatch(firestore);
-  
-      // 1. Save the full version to the private 'pages' collection
-      const pageDocRef = doc(firestore, 'pages', pageId);
+
+      // 1. Simpan data utama ke koleksi privat 'pages'
       const pageDataToSave = {
         userId: user.uid,
         pageName,
-        content: JSON.parse(JSON.stringify(content)), // Deep copy
+        content: JSON.parse(JSON.stringify(content)),
         lastUpdated: serverTimestamp(),
         pageBackgroundColor,
         published: publishedState,
       };
+      // 'pageDocRef' sudah benar mengarah ke 'pages/{pageId}'
       batch.set(pageDocRef, pageDataToSave, { merge: true });
-  
-      // 2. If published, save a public version to 'publishedPages' collection. Otherwise, delete it.
+
+      // 2. Buat referensi ke koleksi publik
       const publicPageDocRef = doc(firestore, 'publishedPages', pageId);
+
       if (publishedState) {
+        // Jika dipublikasikan, buat/update salinan publiknya
         const publicPageData: PublishedPage = {
-          content: JSON.parse(JSON.stringify(content)), // Deep copy
+          content: JSON.parse(JSON.stringify(content)),
           pageName,
           pageBackgroundColor,
-          pageId: pageId,
           userId: user.uid,
+          pageId,
         };
         batch.set(publicPageDocRef, publicPageData);
       } else {
-        // If it's being unpublished, delete it from the public collection.
+        // Jika tidak dipublikasikan, hapus dari koleksi publik
         batch.delete(publicPageDocRef);
       }
-  
+
+      // Jalankan semua operasi secara bersamaan
       await batch.commit();
-  
+
       toast({
         title: 'Page Saved!',
-        description: `Your changes have been saved.`,
+        description: 'Your changes have been successfully saved.',
       });
       setIsDirty(false);
-  
     } catch (error) {
-      console.error("Error saving page:", error);
+      console.error("Error saving page: ", error);
       toast({
         variant: 'destructive',
         title: 'Save Failed',
-        description: 'Could not save your changes. Check console for details.',
+        description: 'Could not save your changes.',
       });
     } finally {
       setIsSaving(false);
@@ -601,5 +600,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
     </TooltipProvider>
   );
 }
+
+    
 
     
