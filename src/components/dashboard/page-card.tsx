@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Pencil } from 'lucide-react';
 import Image from 'next/image';
+import { PageAnalytics } from './page-analytics';
 
 interface PageCardProps {
   pageId: string;
@@ -21,17 +22,22 @@ export function PageCard({ pageId, pageName }: PageCardProps) {
           ID: {pageId}
         </CardDescription>
       </CardHeader>
-      <CardContent className="p-0 aspect-video relative flex-grow overflow-hidden">
-        <Image
-          src={`https://picsum.photos/seed/${pageId}/400/225`}
-          alt={`Preview of ${pageName}`}
-          fill
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          className="object-cover transition-transform duration-300 group-hover:scale-105"
-          data-ai-hint="website landing-page"
-        />
+      <CardContent className="p-0 flex-grow flex flex-col">
+        <div className="px-4 pb-4">
+          <PageAnalytics pageId={pageId} />
+        </div>
+        <div className="aspect-video relative flex-grow overflow-hidden">
+          <Image
+            src={`https://picsum.photos/seed/${pageId}/400/225`}
+            alt={`Preview of ${pageName}`}
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            data-ai-hint="website landing-page"
+          />
+        </div>
       </CardContent>
-      <CardFooter className="p-4">
+      <CardFooter className="p-4 mt-auto">
         <Button asChild className="w-full">
           <Link href={`/editor/${pageId}`}>
             <Pencil className="mr-2 h-4 w-4" />
