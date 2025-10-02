@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { collection, doc, addDoc, serverTimestamp, writeBatch, updateDoc, arrayUnion } from 'firebase/firestore';
-import { useAuth, useFirestore, useUser, useDoc } from '@/firebase';
+import { useAuth, useFirestore, useUser, useDoc, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,8 @@ import { Logo } from '@/components/logo';
 import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { createDefaultPageContent } from '@/lib/utils';
-import { Loader2, LogOut, PlusCircle } from 'lucide-react';
+import { Loader2, LogOut, PlusCircle, Search } from 'lucide-react';
+import { Input } from '../ui/input';
 
 interface UserPageLink {
   pageId: string;
@@ -32,6 +33,7 @@ export function DashboardClient() {
   const firestore = useFirestore();
 
   const [isCreatingPage, setIsCreatingPage] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Get the user document which contains the list of pages
   const userDocRef = useMemo(() => {
@@ -40,6 +42,13 @@ export function DashboardClient() {
   }, [firestore, user]);
 
   const { data: userData, isLoading, error } = useDoc<UserData>(userDocRef);
+
+  const filteredPages = useMemo(() => {
+    if (!userData?.pages) return [];
+    return userData.pages.filter(page =>
+      page.pageName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [userData, searchTerm]);
 
   const handleCreatePage = async () => {
     if (!user || !firestore) return;
@@ -71,9 +80,18 @@ export function DashboardClient() {
 
         toast({ title: "Page created!", description: "Redirecting to the editor..." });
         router.push(`/editor/${newPageRef.id}`);
-    } catch(e) {
+    } catch(e: any) {
         console.error("Error creating page", e);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not create a new page. Please check permissions and try again.'});
+        if (e.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: e.customData.path, // Assuming error has this custom data
+                operation: 'write',
+                requestResourceData: e.customData.requestData
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not create a new page. Please check permissions and try again.'});
+        }
     } finally {
         setIsCreatingPage(false);
     }
@@ -109,7 +127,7 @@ export function DashboardClient() {
       </header>
 
       <main className="flex-grow container py-8">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold tracking-tight">Your Pages</h1>
           <Button onClick={handleCreatePage} disabled={isCreatingPage}>
             {isCreatingPage ? (
@@ -120,6 +138,20 @@ export function DashboardClient() {
             Create New Page
           </Button>
         </div>
+        
+        <div className="mb-8">
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                    type="text"
+                    placeholder="Search pages..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10"
+                />
+            </div>
+        </div>
+
 
         {isLoading ? (
           <PageGridSkeleton />
@@ -129,11 +161,18 @@ export function DashboardClient() {
               <p className="mt-2 text-destructive-foreground/80">Could not load your data: {error.message}</p>
             </div>
         ) : userData && userData.pages && userData.pages.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {userData.pages.map(page => (
-              <PageCard key={page.pageId} pageId={page.pageId} pageName={page.pageName} />
-            ))}
-          </div>
+           filteredPages.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {filteredPages.map(page => (
+                    <PageCard key={page.pageId} pageId={page.pageId} pageName={page.pageName} />
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center py-20 px-4 border-2 border-dashed rounded-lg">
+                    <h2 className="text-2xl font-semibold text-foreground">No pages found</h2>
+                    <p className="mt-2 text-muted-foreground">Your search for "{searchTerm}" did not match any pages.</p>
+                </div>
+            )
         ) : (
           <EmptyState onCreatePage={handleCreatePage} />
         )}
