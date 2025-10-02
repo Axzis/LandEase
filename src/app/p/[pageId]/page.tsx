@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { notFound, useParams } from 'next/navigation'; // <-- 1. Tambahkan impor useParams
+import { notFound, useParams } from 'next/navigation';
 import { doc } from 'firebase/firestore';
 import { useDoc, useFirestore } from '@/firebase';
 import { Loader2 } from 'lucide-react';
@@ -16,39 +16,51 @@ interface PublicPageData {
   userId: string;
 }
 
-// 2. Hapus props 'params' dari sini
-export default function PublicPage() { 
+export default function PublicPage() {
   const firestore = useFirestore();
-  
-  // 🔥 PERBAIKAN UTAMA: Gunakan hook useParams() untuk mendapatkan ID halaman
   const params = useParams();
-  const pageId = typeof params.pageId === 'string' ? params.pageId : null;
   
+  // Cara paling aman untuk mendapatkan ID halaman dari URL
+  const pageId = typeof params?.pageId === 'string' ? params.pageId : null;
+
+  // --- LANGKAH DEBUGGING ---
+  // Pesan ini akan muncul di konsol browser Anda (tekan F12)
+  console.log("Mencoba memuat halaman dengan ID:", pageId);
+
   const pageDocRef = useMemo(() => {
-    if (!firestore || !pageId) return null;
-    
-    // Ini sudah benar, mengarah ke koleksi 'publishedPages'
+    if (!firestore || !pageId) {
+      console.log("Referensi dokumen tidak bisa dibuat: firestore atau pageId tidak ada.");
+      return null;
+    }
+    console.log(`Membuat referensi dokumen: publishedPages/${pageId}`);
     return doc(firestore, 'publishedPages', pageId);
   }, [firestore, pageId]);
 
   const { data: pageData, isLoading, error } = useDoc<PublicPageData>(pageDocRef);
 
-  // Tampilkan loading spinner saat data diambil atau pageId belum siap
-  if (isLoading || !pageId) {
+  // Tangani jika ada error dari hook Firebase
+  if (error) {
+    console.error("Error dari hook Firebase:", error);
+    return notFound();
+  }
+
+  // Tampilkan loading jika ID belum siap atau Firebase sedang mengambil data
+  if (isLoading || !pageDocRef) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-2">Memuat Halaman...</p>
       </div>
     );
   }
 
-  // Jika ada error atau data tidak ditemukan, tampilkan 404
-  if (error || !pageData) {
-     if (error) console.error("Error loading public page:", error.message);
-     return notFound();
+  // Tampilkan 404 jika loading selesai tapi tidak ada data
+  if (!pageData) {
+    console.warn(`Dokumen tidak ditemukan untuk ID: ${pageId}. Ini yang menyebabkan 404.`);
+    return notFound();
   }
   
-  // Render halaman
+  // Tampilkan halaman jika data berhasil didapatkan
   return (
     <div style={{ backgroundColor: pageData.pageBackgroundColor || '#FFFFFF' }}>
       <EditorCanvas
