@@ -9,14 +9,14 @@ import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 
-// Configuration is now directly managed here.
+// 🔥 KONFIGURASI YANG SUDAH DIPERBAIKI SESUAI DATA ANDA 🔥
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyDrWsPeG-OPyqkDc8di0zxLGXRd7xMW_6I",
+  authDomain: "landease-1g97g.firebaseapp.com",
+  projectId: "landease-1g97g",
+  storageBucket: "landease-1g97g.firebasestorage.app", // <- Perbaikan di sini
+  messagingSenderId: "121206095671",
+  appId: "1:121206095671:web:4abd4a6ea473c72fb0e4b2"
 };
 
 interface FirebaseServices {
@@ -25,11 +25,9 @@ interface FirebaseServices {
   firestore: Firestore;
 }
 
-// Simplified and robust initialization function.
 function initializeFirebase(): FirebaseServices | null {
-  // If config is missing, we can't initialize Firebase.
   if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-    console.error("Firebase config is missing. Make sure NEXT_PUBLIC_FIREBASE variables are set in .env");
+    console.error("Firebase config is missing or invalid!");
     return null;
   }
 
@@ -47,7 +45,6 @@ interface FirebaseClientProviderProps {
 }
 
 export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
-  // useMemo ensures Firebase is initialized only once per client session.
   const firebaseServices = useMemo(() => initializeFirebase(), []);
 
   if (!firebaseServices) {
@@ -56,17 +53,13 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
         <div className="text-center p-4">
             <h2 className="text-2xl font-bold text-destructive mb-2">Firebase Not Configured</h2>
             <p className="text-muted-foreground">
-                Firebase environment variables (NEXT_PUBLIC_FIREBASE_*) are not set.
-                Please check your .env file and restart the server.
+                Firebase configuration is missing or invalid. Please check your client-provider file.
             </p>
         </div>
       </div>
     );
   }
 
-  // The providers are now correctly nested.
-  // FirebaseProvider makes the SDK instances available.
-  // AuthProvider uses those instances to manage user state.
   return (
     <FirebaseProvider
       firebaseApp={firebaseServices.firebaseApp}
