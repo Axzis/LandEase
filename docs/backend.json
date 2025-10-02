@@ -32,7 +32,8 @@
                 "type": "object",
                 "properties": {
                     "pageId": { "type": "string" },
-                    "pageName": { "type": "string" }
+                    "pageName": { "type": "string" },
+                    "thumbnailUrl": { "type": "string", "description": "URL for the page's dashboard thumbnail." }
                 },
                 "required": ["pageId", "pageName"]
             }
@@ -72,6 +73,10 @@
             },
             "pageBackgroundColor": {
                 "type": "string"
+            },
+            "thumbnailUrl": {
+                "type": "string",
+                "description": "URL for the page's dashboard thumbnail."
             }
         },
         "required": ["userId", "pageName", "content", "published"]

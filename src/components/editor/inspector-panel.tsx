@@ -23,6 +23,8 @@ interface InspectorPanelProps {
   onClearSelection: () => void;
   pageBackgroundColor: string;
   onUpdatePageBackgroundColor: (color: string) => void;
+  thumbnailUrl: string;
+  onUpdateThumbnailUrl: (url: string) => void;
 }
 
 const inspectorMap = {
@@ -56,7 +58,7 @@ const InspectorLoader = () => (
     </div>
 );
 
-export function InspectorPanel({ selectedComponent, onUpdateComponent, pageBackgroundColor, onUpdatePageBackgroundColor }: InspectorPanelProps) {
+export function InspectorPanel({ selectedComponent, onUpdateComponent, pageBackgroundColor, onUpdatePageBackgroundColor, thumbnailUrl, onUpdateThumbnailUrl }: InspectorPanelProps) {
   const Inspector = selectedComponent ? inspectorMap[selectedComponent.type as keyof typeof inspectorMap] : null;
 
   const key = selectedComponent ? selectedComponent.id : 'page-inspector';
@@ -82,6 +84,8 @@ export function InspectorPanel({ selectedComponent, onUpdateComponent, pageBackg
                 <PageInspector 
                   backgroundColor={pageBackgroundColor}
                   onUpdateBackgroundColor={onUpdatePageBackgroundColor}
+                  thumbnailUrl={thumbnailUrl}
+                  onUpdateThumbnailUrl={onUpdateThumbnailUrl}
                 />
               )}
             </Suspense>

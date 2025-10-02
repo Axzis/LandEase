@@ -1,7 +1,8 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useTransition } from 'react';
-import { doc, setDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, writeBatch, runTransaction } from 'firebase/firestore';
 import { useFirestore, useDoc, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -88,6 +89,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
   const [content, setContent] = useState<PageContent>([]);
   const [isPublished, setIsPublished] = useState(false);
   const [pageBackgroundColor, setPageBackgroundColor] = useState('#FFFFFF');
+  const [thumbnailUrl, setThumbnailUrl] = useState('');
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -101,6 +103,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
       setContent(pageData.content || []);
       setIsPublished(pageData.published || false);
       setPageBackgroundColor(pageData.pageBackgroundColor || '#FFFFFF');
+      setThumbnailUrl(pageData.thumbnailUrl || '');
     }
   }, [pageData]);
 
@@ -299,41 +302,59 @@ export function EditorClient({ pageId }: EditorClientProps) {
     if (!pageDocRef || !user || !firestore) return;
     setIsSaving(true);
     try {
-        const batch = writeBatch(firestore);
+      await runTransaction(firestore, async (transaction) => {
+        // 1. Update the main page document
         const pageDataToSave = {
-            userId: user.uid,
-            pageName,
-            content: JSON.parse(JSON.stringify(content)),
-            lastUpdated: serverTimestamp(),
-            pageBackgroundColor,
-            published: publishedState,
+          userId: user.uid,
+          pageName,
+          content: JSON.parse(JSON.stringify(content)),
+          lastUpdated: serverTimestamp(),
+          pageBackgroundColor,
+          published: publishedState,
+          thumbnailUrl,
         };
-        batch.set(pageDocRef, pageDataToSave, { merge: true });
+        transaction.set(pageDocRef, pageDataToSave, { merge: true });
 
+        // 2. Update the user's list of pages
+        const userDocRef = doc(firestore, `users/${user.uid}`);
+        const userDoc = await transaction.get(userDocRef);
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          const pages = userData.pages || [];
+          const pageIndex = pages.findIndex((p: any) => p.pageId === pageId);
+          if (pageIndex !== -1) {
+            pages[pageIndex].pageName = pageName;
+            pages[pageIndex].thumbnailUrl = thumbnailUrl;
+            transaction.update(userDocRef, { pages: pages });
+          }
+        }
+
+        // 3. Update the published page document
         const publicPageDocRef = doc(firestore, 'publishedPages', pageId);
         if (publishedState) {
-            const publicPageData = {
-                content: JSON.parse(JSON.stringify(content)),
-                pageName,
-                pageBackgroundColor,
-                userId: user.uid,
-            };
-            batch.set(publicPageDocRef, publicPageData);
+          const publicPageData = {
+            content: JSON.parse(JSON.stringify(content)),
+            pageName,
+            pageBackgroundColor,
+            userId: user.uid,
+          };
+          transaction.set(publicPageDocRef, publicPageData);
         } else {
-            batch.delete(publicPageDocRef);
+          transaction.delete(publicPageDocRef);
         }
-        await batch.commit();
-        toast({ title: 'Page Saved!', description: 'Your changes have been successfully saved.' });
-        setIsDirty(false);
+      });
+
+      toast({ title: 'Page Saved!', description: 'Your changes have been successfully saved.' });
+      setIsDirty(false);
     } catch (error) {
-        console.error("Error saving page to Firestore: ", error);
-        toast({
-            variant: 'destructive',
-            title: 'Save Failed',
-            description: 'Could not save. Please check Firestore rules and console for errors.',
-        });
+      console.error("Error saving page to Firestore: ", error);
+      toast({
+        variant: 'destructive',
+        title: 'Save Failed',
+        description: 'Could not save. Please check Firestore rules and console for errors.',
+      });
     } finally {
-        setIsSaving(false);
+      setIsSaving(false);
     }
   };
 
@@ -483,6 +504,11 @@ export function EditorClient({ pageId }: EditorClientProps) {
                 onUpdatePageBackgroundColor={(color) => {
                   setPageBackgroundColor(color);
                   setIsDirty(true);
+                }}
+                thumbnailUrl={thumbnailUrl}
+                onUpdateThumbnailUrl={(url) => {
+                    setThumbnailUrl(url);
+                    setIsDirty(true);
                 }}
               />
             </div>

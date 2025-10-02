@@ -2,13 +2,16 @@ import { Settings } from 'lucide-react';
 import { BaseInspector } from './base-inspector';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
 
 interface PageInspectorProps {
     backgroundColor: string;
     onUpdateBackgroundColor: (color: string) => void;
+    thumbnailUrl: string;
+    onUpdateThumbnailUrl: (url: string) => void;
 }
 
-export function PageInspector({ backgroundColor, onUpdateBackgroundColor }: PageInspectorProps) {
+export function PageInspector({ backgroundColor, onUpdateBackgroundColor, thumbnailUrl, onUpdateThumbnailUrl }: PageInspectorProps) {
   return (
     <div>
         <h3 className="text-lg font-semibold mb-4 border-b pb-2">Page Properties</h3>
@@ -29,6 +32,21 @@ export function PageInspector({ backgroundColor, onUpdateBackgroundColor }: Page
                         onChange={(e) => onUpdateBackgroundColor(e.target.value)}
                     />
                 </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+                <Label htmlFor="page-thumbnailUrl">Thumbnail URL</Label>
+                <Input
+                    id="page-thumbnailUrl"
+                    value={thumbnailUrl}
+                    onChange={(e) => onUpdateThumbnailUrl(e.target.value)}
+                    placeholder="https://example.com/image.png"
+                />
+                 <p className="text-xs text-muted-foreground">
+                    This image will be shown on the dashboard.
+                </p>
             </div>
 
             <div className="text-center text-muted-foreground p-8 border-2 border-dashed rounded-lg mt-8">

@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { collection, doc, serverTimestamp, writeBatch, arrayUnion } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, writeBatch, arrayUnion, getDoc, runTransaction } from 'firebase/firestore';
 import { useFirestore, useUser, useDoc, errorEmitter, FirestorePermissionError, useAuth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
@@ -21,6 +21,7 @@ import { CreatePageDialog } from './create-page-dialog';
 interface UserPageLink {
   pageId: string;
   pageName: string;
+  thumbnailUrl?: string;
 }
 
 interface UserData {
@@ -69,13 +70,14 @@ export function DashboardClient() {
           createdAt: serverTimestamp(),
           lastUpdated: serverTimestamp(),
           published: false,
+          thumbnailUrl: `https://picsum.photos/seed/${newPageRef.id}/400/225`
         };
         batch.set(newPageRef, newPageData);
 
         // 2. Add a reference to this new page in the user's document
         const userRef = doc(firestore, `users/${user.uid}`);
         batch.update(userRef, {
-            pages: arrayUnion({ pageId: newPageRef.id, pageName: pageName })
+            pages: arrayUnion({ pageId: newPageRef.id, pageName: pageName, thumbnailUrl: newPageData.thumbnailUrl })
         });
         
         await batch.commit();
@@ -170,7 +172,7 @@ export function DashboardClient() {
            filteredPages.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {filteredPages.map(page => (
-                    <PageCard key={page.pageId} pageId={page.pageId} pageName={page.pageName} />
+                    <PageCard key={page.pageId} pageId={page.pageId} pageName={page.pageName} thumbnailUrl={page.thumbnailUrl} />
                     ))}
                 </div>
             ) : (

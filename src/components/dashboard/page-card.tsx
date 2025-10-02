@@ -11,9 +11,12 @@ import { PageAnalytics } from './page-analytics';
 interface PageCardProps {
   pageId: string;
   pageName: string;
+  thumbnailUrl?: string;
 }
 
-export function PageCard({ pageId, pageName }: PageCardProps) {
+export function PageCard({ pageId, pageName, thumbnailUrl }: PageCardProps) {
+  const imageSrc = thumbnailUrl || `https://picsum.photos/seed/${pageId}/400/225`;
+    
   return (
     <Card className="flex flex-col overflow-hidden transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-2 group">
       <CardHeader>
@@ -28,7 +31,7 @@ export function PageCard({ pageId, pageName }: PageCardProps) {
         </div>
         <div className="aspect-video relative flex-grow overflow-hidden">
           <Image
-            src={`https://picsum.photos/seed/${pageId}/400/225`}
+            src={imageSrc}
             alt={`Preview of ${pageName}`}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
