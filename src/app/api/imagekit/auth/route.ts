@@ -1,6 +1,8 @@
 
 import { NextResponse } from 'next/server';
 import ImageKit from 'imagekit';
+// Impor dan konfigurasi dotenv untuk memuat variabel lingkungan
+require('dotenv').config();
 
 const imageKit = new ImageKit({
   publicKey: process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY!,
