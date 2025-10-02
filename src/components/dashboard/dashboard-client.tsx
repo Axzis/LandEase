@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
 import { collection, doc, serverTimestamp, writeBatch, arrayUnion } from 'firebase/firestore';
-import { useFirestore, useUser, useDoc, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useFirestore, useUser, useDoc, errorEmitter, FirestorePermissionError, useAuth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,6 @@ import { PageGridSkeleton } from '@/components/dashboard/page-grid-skeleton';
 import { EmptyState } from '@/components/dashboard/empty-state';
 import { Logo } from '@/components/logo';
 import { signOut } from 'firebase/auth';
-import { useAuth } from '@/firebase/auth/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { createDefaultPageContent } from '@/lib/utils';
 import { Loader2, LogOut, PlusCircle, Search } from 'lucide-react';
