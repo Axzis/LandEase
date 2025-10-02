@@ -1,66 +1,55 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * @description Protects user profiles. Only the authenticated user can read or write their own profile.
-     * @path /databases/{database}/documents/users/{userId}
-     * @allow (get, create, update, delete) User with UID 'test_user' can access /users/test_user.
-     * @deny (get, create, update, delete) User with UID 'test_user' cannot access /users/other_user.
-     * @principle Enforces document ownership for all operations.
-     */
+    // --- Aturan untuk Profil Pengguna ---
+    // Pengguna hanya bisa membaca dan menulis profilnya sendiri.
     match /users/{userId} {
-      allow get: if request.auth.uid == userId;
-      allow list: if false;
-      allow create: if request.auth.uid == userId;
-      allow update: if request.auth.uid == userId;
-      allow delete: if request.auth.uid == userId;
+      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
+      allow list: if false; // Mencegah siapa pun melihat daftar semua pengguna.
     }
 
-    /**
-     * @description Manages private landing pages. Only the owner can create, read, update, or delete their own pages.
-     * @path /databases/{database}/documents/pages/{pageId}
-     * @allow (create, get, update, delete) User with UID 'test_user' can manage /pages/test_page if page.userId == 'test_user'.
-     * @deny (create, get, update, delete) User with UID 'test_user' cannot manage /pages/other_page if page.userId != 'test_user'.
-     * @principle Enforces document ownership for writes.
-     */
+    // --- Aturan untuk Halaman (Versi Privat/Editor) ---
+    // Hanya pemilik yang dapat melakukan semua operasi pada halamannya.
     match /pages/{pageId} {
-      allow get: if request.auth.uid == resource.data.userId;
+      // Izinkan baca, update, hapus jika UID pengguna cocok dengan userId di dokumen.
+      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      
+      // Izinkan pembuatan jika UID pengguna cocok dengan userId yang akan dibuat.
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      
       allow list: if false;
-      allow create: if request.auth.uid == request.resource.data.userId;
-      allow update: if request.auth.uid == resource.data.userId;
-      allow delete: if request.auth.uid == resource.data.userId;
+
+      // --- Aturan untuk Sub-koleksi Submission ---
+      // Siapa saja bisa mengirim form, tetapi hanya pemilik halaman yang bisa membacanya.
+      match /submissions/{submissionId} {
+        function isParentPageOwner() {
+          return request.auth != null && request.auth.uid == get(/databases/$(database)/documents/pages/$(pageId)).data.userId;
+        }
+        
+        allow read, list: if isParentPageOwner();
+        allow create: if true;
+        allow update, delete: if false;
+      }
     }
 
-    /**
-     * @description Controls access to published landing pages.  Published pages are publicly readable, but only the owner can modify them.
-     * @path /databases/{database}/documents/publishedPages/{pageId}
-     * @allow (get, list) Anyone can read published pages.
-     * @allow (create, update, delete) User with UID 'test_user' can manage /publishedPages/test_page if page.userId == 'test_user'.
-     * @deny (create, update, delete) User with UID 'test_user' cannot manage /publishedPages/other_page if page.userId != 'test_user'.
-     * @principle Public read access with owner-only writes.
-     */
+    // --- Aturan untuk Halaman (Versi Publik) ---
+    // Siapa saja bisa membaca (get, list).
+    // HANYA pemilik halaman asli yang bisa menulis (create, update, delete).
     match /publishedPages/{pageId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if request.auth.uid == request.resource.data.userId;
-      allow update: if request.auth.uid == resource.data.userId;
-      allow delete: if request.auth.uid == resource.data.userId;
-    }
+      allow read, list: if true;
 
-    /**
-     * @description Handles form submissions for landing pages. Anyone can submit a form.
-     * @path /databases/{database}/documents/pages/{pageId}/submissions/{submissionId}
-     * @allow (create) Any user can submit data to this collection.
-     * @deny (get, list, update, delete) No one can get, list, update, or delete any data.
-     * @principle Allows public form submissions.
-     */
-    match /pages/{pageId}/submissions/{submissionId} {
-      allow create: if true;
-      allow get: if false;
-      allow list: if false;
-      allow update: if false;
-      allow delete: if false;
+      function isOriginalPageOwner() {
+        // Memeriksa apakah pengguna yang mencoba menulis adalah pemilik halaman asli di koleksi 'pages'.
+        let pageDoc = get(/databases/$(database)/documents/pages/$(pageId));
+        return request.auth != null && request.auth.uid == pageDoc.data.userId;
+      }
+      
+      // 🔥 PERBAIKAN UTAMA ADA DI SINI 🔥
+      // Izinkan semua operasi tulis (simpan, publish, unpublish) hanya untuk pemilik halaman.
+      allow write: if isOriginalPageOwner();
     }
   }
 }
