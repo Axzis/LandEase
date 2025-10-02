@@ -18,8 +18,9 @@ interface PageData {
 
 export default function PublicPage({ params }: { params: { pageId: string } }) {
   const firestore = useFirestore();
-  // No need for React.use(), params are directly available in App Router client components
-  const { pageId } = params;
+  // Correctly unwrap the params promise using React.use()
+  const resolvedParams = React.use(params);
+  const { pageId } = resolvedParams;
   
   // Memoize the document reference to prevent re-renders.
   // This points back to the primary 'pages' collection.
@@ -44,9 +45,7 @@ export default function PublicPage({ params }: { params: { pageId: string } }) {
   // 2. If an error occurred OR if loading is done and there's still no data,
   // it means the doc doesn't exist or we don't have permission to read it
   // (because it's not published). In either case, show a 404.
-  // This is the core of the new simplified logic.
   if (error || !pageData) {
-     // Log the error for debugging, but don't show it to the user.
      if (error) console.error("Error loading page:", error.message);
      notFound();
   }
