@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef } from 'react';
@@ -59,7 +60,7 @@ export function ImageUploader({ currentImageUrl, onUploadSuccess, folder = 'land
       <Label>{label}</Label>
       {currentImageUrl && (
         <div className="relative aspect-video w-full overflow-hidden rounded-md border">
-          <Image src={currentImageUrl} alt="Current image" layout="fill" objectFit="contain" />
+          <Image src={currentImageUrl} alt="Current image" fill style={{ objectFit: 'contain' }} />
         </div>
       )}
       <Input

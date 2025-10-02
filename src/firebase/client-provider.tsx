@@ -1,10 +1,11 @@
+
 'use client';
 
 import React, { useMemo, type ReactNode } from 'react';
 import { AuthProvider } from '@/firebase/auth/use-user';
 import { FirebaseProvider } from '@/firebase/provider';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
-import { firebaseConfig } from '@/firebase/config'; // Impor dari file config
+import { firebaseConfig } from '@/firebase/config';
 
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
