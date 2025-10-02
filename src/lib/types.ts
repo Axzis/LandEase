@@ -2,6 +2,7 @@
 
 
 
+
 export type ComponentType = 'Section' | 'Heading' | 'Text' | 'Button' | 'Image' | 'Navbar' | 'Footer' | 'Columns' | 'Video' | 'Form';
 
 export interface BaseComponent {
@@ -137,3 +138,10 @@ export interface FormComponent extends BaseComponent {
 export type PageComponent = SectionComponent | HeadingComponent | TextComponent | ButtonComponent | ImageComponent | NavbarComponent | FooterComponent | ColumnsComponent | VideoComponent | FormComponent;
 
 export type PageContent = PageComponent[];
+
+// New type for the public-facing page data
+export interface PublishedPage {
+    content: PageContent;
+    pageName: string;
+    pageBackgroundColor: string;
+}

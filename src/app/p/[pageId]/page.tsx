@@ -8,31 +8,26 @@ import { Loader2 } from 'lucide-react';
 import { EditorCanvas } from '@/components/editor/editor-canvas';
 
 // Define a clear type for the expected page data
-interface PageData {
+interface PublicPageData {
   content: any[];
   pageBackgroundColor: string;
   pageName: string;
-  published: boolean;
-  userId: string;
 }
 
 export default function PublicPage({ params }: { params: Promise<{ pageId: string }> }) {
   const firestore = useFirestore();
-
-  // Next.js now provides params as a promise in client components.
-  // We must use `React.use` to unwrap it. This is the correct modern approach.
   const resolvedParams = React.use(params);
   const { pageId } = resolvedParams;
   
-  // Memoize the document reference to prevent re-renders.
-  // This is stable and depends only on firestore and pageId.
+  // This now points to the public, read-only collection.
   const pageDocRef = useMemo(() => {
     if (!firestore || !pageId) return null;
-    return doc(firestore, 'pages', pageId);
+    return doc(firestore, 'publishedPages', pageId);
   }, [firestore, pageId]);
 
   // The useDoc hook handles the real-time subscription.
-  const { data: pageData, isLoading, error } = useDoc<PageData>(pageDocRef);
+  // It will correctly return `data: null` and `error: null` if the doc doesn't exist.
+  const { data: pageData, isLoading, error } = useDoc<PublicPageData>(pageDocRef);
 
   // 1. Show a loading state while data is being fetched.
   if (isLoading) {
@@ -43,25 +38,22 @@ export default function PublicPage({ params }: { params: Promise<{ pageId: strin
     );
   }
 
-  // 2. If an error occurs (e.g., permission-denied), show a 404 page.
-  // This is a critical step for security.
+  // 2. If an error occurs (e.g., something other than not found), show a 404.
+  // This is a safety net. For this collection, permission errors shouldn't happen.
   if (error) {
-     console.error("Error loading page:", error);
+     console.error("Error loading published page:", error);
      notFound();
   }
 
-  // 3. If loading is finished and there's still no data, the document doesn't exist.
+  // 3. If loading is finished and there's no data, the document doesn't exist in the
+  // 'publishedPages' collection, which means it's not published or doesn't exist.
+  // This is the primary mechanism for showing a 404.
   if (!pageData) {
     notFound();
   }
-
-  // 4. CRITICAL: After confirming data exists, check if it's published.
-  // This prevents showing unpublished content.
-  if (pageData.published !== true) {
-    notFound();
-  }
   
-  // 5. If all checks pass, render the page.
+  // 4. If all checks pass, render the page. No need to check for a `published` flag
+  // because the document's existence in this collection confirms it.
   return (
     <div style={{ backgroundColor: pageData.pageBackgroundColor || '#FFFFFF' }}>
       <EditorCanvas

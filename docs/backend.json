@@ -75,6 +75,18 @@
         },
         "required": ["userId", "pageName", "content", "published"]
     },
+    "PublishedPage": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Published Page",
+        "type": "object",
+        "description": "Represents the public-facing, read-only version of a page.",
+        "properties": {
+            "pageName": { "type": "string" },
+            "content": { "type": "array" },
+            "pageBackgroundColor": { "type": "string" }
+        },
+        "required": ["pageName", "content"]
+    },
     "Submission": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "title": "Submission",
@@ -117,13 +129,19 @@
         "schema": {
             "$ref": "#/entities/Page"
         },
-        "description": "Stores all landing pages created by users."
+        "description": "Stores all landing pages created by users. Private and editable only by the owner."
     },
     "/pages/{pageId}/submissions/{submissionId}": {
         "schema": {
             "$ref": "#/entities/Submission"
         },
         "description": "Stores form submissions for a specific page."
+    },
+    "/publishedPages/{pageId}": {
+        "schema": {
+            "$ref": "#/entities/PublishedPage"
+        },
+        "description": "Stores the public, read-only version of published pages. Anyone can read from this collection."
     }
   }
 }
