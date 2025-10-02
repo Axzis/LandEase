@@ -2,10 +2,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import ImageKit from 'imagekit-javascript';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Loader2, Upload, X } from 'lucide-react';
 import Image from 'next/image';
 
@@ -13,13 +11,6 @@ interface ImageUploaderProps {
   value: string;
   onChange: (value: string) => void;
 }
-
-// Initialize ImageKit
-const imageKit = new ImageKit({
-  publicKey: process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY!,
-  urlEndpoint: process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT!,
-  authenticationEndpoint: '/api/imagekit/auth',
-});
 
 export function ImageUploader({ value, onChange }: ImageUploaderProps) {
   const { toast } = useToast();
@@ -36,19 +27,46 @@ export function ImageUploader({ value, onChange }: ImageUploaderProps) {
 
     setIsLoading(true);
     try {
-      const result = await imageKit.upload({
-        file: file,
-        fileName: file.name,
+      // 1. Get authentication parameters from our server
+      const authResponse = await fetch('/api/imagekit/auth');
+      if (!authResponse.ok) {
+        throw new Error('Failed to get authentication parameters.');
+      }
+      const { signature, expire, token } = await authResponse.json();
+
+      // 2. Prepare data for ImageKit upload
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('fileName', file.name);
+      formData.append('publicKey', process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY!);
+      formData.append('signature', signature);
+      formData.append('expire', expire);
+      formData.append('token', token);
+
+      // 3. Upload the file to ImageKit
+      const uploadResponse = await fetch('https://upload.imagekit.io/api/v1/files/upload', {
+        method: 'POST',
+        body: formData,
       });
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        throw new Error(errorData.message || 'ImageKit upload failed.');
+      }
+
+      const result = await uploadResponse.json();
+      
       onChange(result.url);
       setPreviewUrl(result.url);
       toast({ title: 'Upload Successful', description: 'Your image has been uploaded.' });
+
     } catch (error) {
       console.error('ImageKit upload error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Could not upload image.';
       toast({
         variant: 'destructive',
         title: 'Upload Failed',
-        description: 'Could not upload image. Please check console for details.',
+        description: errorMessage,
       });
     } finally {
       setIsLoading(false);
@@ -95,4 +113,3 @@ export function ImageUploader({ value, onChange }: ImageUploaderProps) {
     </div>
   );
 }
-
