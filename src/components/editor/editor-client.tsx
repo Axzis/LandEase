@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useTransition } from 'react';
@@ -382,7 +383,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
     try {
       const batch = writeBatch(firestore);
   
-      // 1. Simpan data utama ke koleksi privat 'pages'
+      // 1. Selalu simpan versi utama ke koleksi 'pages'
       const pageDataToSave = {
         userId: user.uid,
         pageName,
@@ -393,7 +394,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
       };
       batch.set(pageDocRef, pageDataToSave, { merge: true });
   
-      // 2. Buat referensi ke koleksi publik
+      // 2. Atur koleksi 'publishedPages'
       const publicPageDocRef = doc(firestore, 'publishedPages', pageId);
   
       if (publishedState) {
@@ -420,10 +421,9 @@ export function EditorClient({ pageId }: EditorClientProps) {
       setIsDirty(false);
     } catch (error: any) {
       if (error.code === 'permission-denied') {
-        // This is where we create and emit the contextual error
         const permissionError = new FirestorePermissionError({
-          path: pageDocRef.path, // We can reference the private path as it's the source of truth
-          operation: 'write',    // A batch can be a create or update
+          path: pageDocRef.path,
+          operation: 'write',
           requestResourceData: {
             page: { path: pageDocRef.path, data: { pageName, published: publishedState, pageBackgroundColor } },
             publishedPage: publishedState 
