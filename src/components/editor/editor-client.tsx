@@ -378,10 +378,10 @@ export function EditorClient({ pageId }: EditorClientProps) {
   const handleSave = async (publishedState: boolean) => {
     if (!pageDocRef || !user || !firestore) return;
     setIsSaving(true);
-
+  
     try {
       const batch = writeBatch(firestore);
-
+  
       // 1. Simpan data utama ke koleksi privat 'pages'
       const pageDataToSave = {
         userId: user.uid,
@@ -392,27 +392,27 @@ export function EditorClient({ pageId }: EditorClientProps) {
         published: publishedState,
       };
       batch.set(pageDocRef, pageDataToSave, { merge: true });
-
+  
       // 2. Buat referensi ke koleksi publik
       const publicPageDocRef = doc(firestore, 'publishedPages', pageId);
-
+  
       if (publishedState) {
         // Jika dipublikasikan, buat/update salinan publiknya
         const publicPageData: PublishedPage = {
+          pageId,
           content: JSON.parse(JSON.stringify(content)),
           pageName,
           pageBackgroundColor,
           userId: user.uid,
-          pageId,
         };
         batch.set(publicPageDocRef, publicPageData);
       } else {
         // Jika tidak dipublikasikan, hapus dari koleksi publik
         batch.delete(publicPageDocRef);
       }
-
+  
       await batch.commit();
-
+  
       toast({
         title: 'Page Saved!',
         description: 'Your changes have been successfully saved.',
@@ -613,9 +613,3 @@ export function EditorClient({ pageId }: EditorClientProps) {
     </TooltipProvider>
   );
 }
-
-    
-
-    
-
-    

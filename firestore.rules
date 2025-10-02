@@ -1,117 +1,66 @@
-/**
- * @fileoverview Firestore Security Rules for LandEase application.
- *
- * Core Philosophy:
- * This ruleset enforces a user-ownership model for user profiles and landing pages. Users can only
- * read, update, and delete their own profiles and pages. Submissions to pages are publicly
- * creatable but only readable by the page owner. Listing of users and pages is disallowed.
- *
- * Data Structure:
- * - /users/{userId}: Stores user profile information.
- * - /pages/{pageId}: Stores private, editable landing pages owned by users.
- * - /pages/{pageId}/submissions/{submissionId}: Stores form submissions for a specific page.
- *
- * Key Security Decisions:
- * - User listing is disallowed for privacy reasons.
- * - Page listing is disallowed to prevent unauthorized discovery of unpublished content.
- * - Submissions are publicly creatable, enabling anyone to submit a form on a published page.
- *
- * Denormalization for Authorization:
- * - The `Page` entity contains a `userId` field to directly associate it with its owner, avoiding
- *   costly `get()` operations to a separate `users` collection.
- *
- * Structural Segregation:
- * - Uses separate collections for private `/pages/{pageId}` (editable by owner) and public
- *   `/publishedPages/{pageId}` (read-only) to manage different access levels.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profile documents.
-     * @path /users/{userId}
-     * @allow (read, update, delete) if the request is made by the user owning the profile (isOwner).
-     * @allow (create) if the request is made by an authenticated user (isSignedIn).
-     * @deny (list) Always deny listing all users for privacy.
-     * @principle Enforces document ownership for profile management.
+     * @description Protects user profiles. Only the authenticated user can read or write their own profile.
+     * @path /databases/{database}/documents/users/{userId}
+     * @allow (get, create, update, delete) User with UID 'test_user' can access /users/test_user.
+     * @deny (get, create, update, delete) User with UID 'test_user' cannot access /users/other_user.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return isSignedIn() && request.auth.uid == userId;
-      }
-
-      allow get, update, delete: if isOwner(userId);
-      allow create: if isSignedIn() && request.auth.uid == request.resource.data.uid;
+      allow get: if request.auth.uid == userId;
       allow list: if false;
+      allow create: if request.auth.uid == userId;
+      allow update: if request.auth.uid == userId;
+      allow delete: if request.auth.uid == userId;
     }
 
     /**
-     * @description Controls access to private landing pages.
-     * @path /pages/{pageId}
-     * @allow (read, update, delete) if the request is made by the page owner (isPageOwner).
-     * @allow (create) if the request is made by an authenticated user and the userId in the document matches the authenticated user's UID (isCreatingOwnPage).
-     * @deny (list) Always deny listing all pages for privacy.
-     * @principle Enforces document ownership for page management.
+     * @description Manages private landing pages. Only the owner can create, read, update, or delete their own pages.
+     * @path /databases/{database}/documents/pages/{pageId}
+     * @allow (create, get, update, delete) User with UID 'test_user' can manage /pages/test_page if page.userId == 'test_user'.
+     * @deny (create, get, update, delete) User with UID 'test_user' cannot manage /pages/other_page if page.userId != 'test_user'.
+     * @principle Enforces document ownership for writes.
      */
     match /pages/{pageId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isPageOwner(pageId) {
-        return isSignedIn() && request.auth.uid == resource.data.userId;
-      }
-
-      function isCreatingOwnPage() {
-        return isSignedIn() && request.auth.uid == request.resource.data.userId;
-      }
-
-      allow get, update, delete: if isPageOwner(pageId);
-      allow create: if isCreatingOwnPage();
+      allow get: if request.auth.uid == resource.data.userId;
       allow list: if false;
+      allow create: if request.auth.uid == request.resource.data.userId;
+      allow update: if request.auth.uid == resource.data.userId;
+      allow delete: if request.auth.uid == resource.data.userId;
     }
 
     /**
-     * @description Controls access to form submissions for a specific landing page.
-     * @path /pages/{pageId}/submissions/{submissionId}
-     * @allow (read, list) if the request is made by the owner of the parent page (isParentPageOwner).
-     * @allow (create) Allow anyone to submit a form.
-     * @deny (update, delete) Never allow submissions to be updated or deleted.
-     * @principle Allows public submissions while restricting read access to the page owner.
-     */
-    match /pages/{pageId}/submissions/{submissionId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isParentPageOwner(pageId) {
-        let page = get(/databases/$(database)/documents/pages/$(pageId));
-        return isSignedIn() && request.auth.uid == page.data.userId;
-      }
-
-      allow get, list: if isParentPageOwner(pageId);
-      allow create: if true;
-      allow update, delete: if false;
-    }
-
-       /**
-     * @description Controls access to public landing pages.
-     * @path /publishedPages/{pageId}
-     * @allow (read, list) Allow anyone to read or list published pages.
-     * @deny (create, update, delete) Never allow published pages to be created, updated, or deleted directly through this collection.
-     * @principle Allows public read access to published pages, read-only for users.
+     * @description Controls access to published landing pages.  Published pages are publicly readable, but only the owner can modify them.
+     * @path /databases/{database}/documents/publishedPages/{pageId}
+     * @allow (get, list) Anyone can read published pages.
+     * @allow (create, update, delete) User with UID 'test_user' can manage /publishedPages/test_page if page.userId == 'test_user'.
+     * @deny (create, update, delete) User with UID 'test_user' cannot manage /publishedPages/other_page if page.userId != 'test_user'.
+     * @principle Public read access with owner-only writes.
      */
     match /publishedPages/{pageId} {
-        allow get: if true;
-        allow list: if true;
-        allow create: if false;
-        allow update: if false;
-        allow delete: if false;
+      allow get: if true;
+      allow list: if true;
+      allow create: if request.auth.uid == request.resource.data.userId;
+      allow update: if request.auth.uid == resource.data.userId;
+      allow delete: if request.auth.uid == resource.data.userId;
+    }
+
+    /**
+     * @description Handles form submissions for landing pages. Anyone can submit a form.
+     * @path /databases/{database}/documents/pages/{pageId}/submissions/{submissionId}
+     * @allow (create) Any user can submit data to this collection.
+     * @deny (get, list, update, delete) No one can get, list, update, or delete any data.
+     * @principle Allows public form submissions.
+     */
+    match /pages/{pageId}/submissions/{submissionId} {
+      allow create: if true;
+      allow get: if false;
+      allow list: if false;
+      allow update: if false;
+      allow delete: if false;
     }
   }
 }
