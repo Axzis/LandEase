@@ -8,28 +8,31 @@ import { Loader2 } from 'lucide-react';
 import { EditorCanvas } from '@/components/editor/editor-canvas';
 
 // Define a clear type for the expected page data
-interface PublicPageData {
+interface PageData {
   content: any[];
   pageBackgroundColor: string;
   pageName: string;
+  published: boolean;
+  userId: string;
 }
 
-export default function PublicPage({ params }: { params: Promise<{ pageId: string }> }) {
+export default function PublicPage({ params }: { params: { pageId: string } }) {
   const firestore = useFirestore();
-  const resolvedParams = React.use(params);
-  const { pageId } = resolvedParams;
+  // No need for React.use(), params are directly available in App Router client components
+  const { pageId } = params;
   
-  // This now points to the public, read-only collection.
+  // Memoize the document reference to prevent re-renders.
+  // This points back to the primary 'pages' collection.
   const pageDocRef = useMemo(() => {
     if (!firestore || !pageId) return null;
-    return doc(firestore, 'publishedPages', pageId);
+    return doc(firestore, 'pages', pageId);
   }, [firestore, pageId]);
 
-  // The useDoc hook handles the real-time subscription.
-  // It will correctly return `data: null` and `error: null` if the doc doesn't exist.
-  const { data: pageData, isLoading, error } = useDoc<PublicPageData>(pageDocRef);
+  // The useDoc hook will attempt to fetch the document.
+  // Security rules will determine if it succeeds.
+  const { data: pageData, isLoading, error } = useDoc<PageData>(pageDocRef);
 
-  // 1. Show a loading state while data is being fetched.
+  // 1. Show a loading state while the request is in flight.
   if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -38,22 +41,24 @@ export default function PublicPage({ params }: { params: Promise<{ pageId: strin
     );
   }
 
-  // 2. If an error occurs (e.g., something other than not found), show a 404.
-  // This is a safety net. For this collection, permission errors shouldn't happen.
-  if (error) {
-     console.error("Error loading published page:", error);
+  // 2. If an error occurred OR if loading is done and there's still no data,
+  // it means the doc doesn't exist or we don't have permission to read it
+  // (because it's not published). In either case, show a 404.
+  // This is the core of the new simplified logic.
+  if (error || !pageData) {
+     // Log the error for debugging, but don't show it to the user.
+     if (error) console.error("Error loading page:", error.message);
      notFound();
   }
-
-  // 3. If loading is finished and there's no data, the document doesn't exist in the
-  // 'publishedPages' collection, which means it's not published or doesn't exist.
-  // This is the primary mechanism for showing a 404.
-  if (!pageData) {
+  
+  // 3. We can be certain pageData exists here.
+  // As a final client-side check, ensure the published flag is explicitly true.
+  // While the security rule is the primary enforcer, this adds a layer of defense.
+  if (pageData.published !== true) {
     notFound();
   }
-  
-  // 4. If all checks pass, render the page. No need to check for a `published` flag
-  // because the document's existence in this collection confirms it.
+
+  // 4. If all checks pass, render the page.
   return (
     <div style={{ backgroundColor: pageData.pageBackgroundColor || '#FFFFFF' }}>
       <EditorCanvas

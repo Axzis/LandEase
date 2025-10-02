@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useTransition } from 'react';
-import { doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore, useDoc, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -93,11 +93,6 @@ export function EditorClient({ pageId }: EditorClientProps) {
   const pageDocRef = useMemo(() => {
     if (!firestore || !pageId) return null;
     return doc(firestore, 'pages', pageId);
-  }, [firestore, pageId]);
-  
-  const pubPageDocRef = useMemo(() => {
-    if(!firestore || !pageId) return null;
-    return doc(firestore, 'publishedPages', pageId);
   }, [firestore, pageId]);
 
   const { data: pageData, isLoading: isPageLoading, error: pageError } = useDoc(pageDocRef);
@@ -380,7 +375,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
 
 
   const handleSave = async (publishedState: boolean) => {
-    if (!pageDocRef || !pubPageDocRef) return;
+    if (!pageDocRef) return;
     setIsSaving(true);
     
     const pageDataToSave = {
@@ -393,22 +388,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
     };
 
     try {
-      // Always save the main, editable version
       await setDoc(pageDocRef, pageDataToSave, { merge: true });
-
-      if (publishedState) {
-        // If published, also save a copy to the public collection
-        const publicPageData = {
-          content: pageDataToSave.content,
-          pageName: pageDataToSave.pageName,
-          pageBackgroundColor: pageDataToSave.pageBackgroundColor,
-        };
-        await setDoc(pubPageDocRef, publicPageData);
-      } else {
-        // If unpublished, delete the public copy
-        await deleteDoc(pubPageDocRef);
-      }
-
       toast({
         title: 'Page Saved!',
         description: 'Your changes have been saved.',
@@ -430,7 +410,6 @@ export function EditorClient({ pageId }: EditorClientProps) {
   const handlePublishToggle = (published: boolean) => {
     setIsPublished(published);
     setIsDirty(true);
-    // The save action will now handle the `published` state
     startTransition(() => {
         handleSave(published).then(() => {
             toast({
