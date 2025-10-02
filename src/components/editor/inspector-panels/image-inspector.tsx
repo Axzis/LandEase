@@ -1,4 +1,3 @@
-
 'use client';
 
 import { ImageComponent } from '@/lib/types';
@@ -6,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BaseInspector } from './base-inspector';
 import { PaddingInspector } from './padding-inspector';
-import { ImageUploader } from '../image-uploader';
+import { ImageUploader } from '../image-uploader'; // <-- Impor komponen baru
 import { Separator } from '@/components/ui/separator';
 
 interface ImageInspectorProps {
@@ -18,24 +17,40 @@ export function ImageInspector({ component, onUpdate }: ImageInspectorProps) {
   const { id, props } = component;
   const { src, alt, width, height } = props;
 
+  // Fungsi ini akan dipanggil setelah upload berhasil
+  const handleImageUpload = (url: string) => {
+    onUpdate(id, { src: url });
+  };
+
   return (
     <BaseInspector title="Image">
-        <div className="space-y-2">
-            <Label htmlFor={`src-${id}`}>Image</Label>
-            <ImageUploader
-              value={src}
-              onChange={(newSrc) => onUpdate(id, { src: newSrc })}
-            />
-        </div>
-        
-        <Separator />
+      {/* Bagian Upload Gambar */}
+      <div className="space-y-2">
+        <Label>Upload Image</Label>
+        <ImageUploader onUploadSuccess={handleImageUpload} />
+        <p className="text-xs text-muted-foreground text-center">OR</p>
+      </div>
+
+      {/* Input URL manual tetap ada sebagai alternatif */}
+      <div className="space-y-2">
+        <Label htmlFor={`src-${id}`}>Image URL</Label>
+        <Input
+          id={`src-${id}`}
+          value={src}
+          onChange={(e) => onUpdate(id, { src: e.target.value })}
+          placeholder="https://example.com/image.png"
+        />
+      </div>
+
+      <Separator />
 
       <div className="space-y-2">
-        <Label htmlFor={`alt-${id}`}>Alt Text (for SEO)</Label>
+        <Label htmlFor={`alt-${id}`}>Alt Text</Label>
         <Input
           id={`alt-${id}`}
           value={alt}
           onChange={(e) => onUpdate(id, { alt: e.target.value })}
+          placeholder="Descriptive text for the image"
         />
       </div>
 

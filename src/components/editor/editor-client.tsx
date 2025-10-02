@@ -1,8 +1,7 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useTransition } from 'react';
-import { doc, setDoc, serverTimestamp, writeBatch, runTransaction } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { useFirestore, useDoc, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -78,7 +77,7 @@ const createNewComponent = (type: ComponentType): PageComponent => {
 export function EditorClient({ pageId }: EditorClientProps) {
   const firestore = useFirestore();
   const { user, loading: isUserLoading } = useUser();
-  
+
   const pageDocRef = useMemo(() => {
     if (!firestore || !pageId) return null;
     return doc(firestore, 'pages', pageId);
@@ -89,21 +88,19 @@ export function EditorClient({ pageId }: EditorClientProps) {
   const [content, setContent] = useState<PageContent>([]);
   const [isPublished, setIsPublished] = useState(false);
   const [pageBackgroundColor, setPageBackgroundColor] = useState('#FFFFFF');
-  const [thumbnailUrl, setThumbnailUrl] = useState('');
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  
+
   useEffect(() => {
     if (pageData) {
       setPageName(pageData.pageName || '');
       setContent(pageData.content || []);
       setIsPublished(pageData.published || false);
       setPageBackgroundColor(pageData.pageBackgroundColor || '#FFFFFF');
-      setThumbnailUrl(pageData.thumbnailUrl || '');
     }
   }, [pageData]);
 
@@ -129,7 +126,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
   }, [selectedComponentId, content]);
 
   const handleSelectComponent = (id: string | null) => setSelectedComponentId(id);
-  
+
   const findComponent = (components: PageContent, id: string): { component: PageComponent | null } => {
     for (const component of components) {
       if (component.id === id) return { component };
@@ -302,59 +299,49 @@ export function EditorClient({ pageId }: EditorClientProps) {
     if (!pageDocRef || !user || !firestore) return;
     setIsSaving(true);
     try {
-      await runTransaction(firestore, async (transaction) => {
-        // 1. Update the main page document
+        // Gunakan writeBatch untuk operasi atomik
+        const batch = writeBatch(firestore);
+
+        // Data untuk koleksi 'pages' (dokumen privat)
         const pageDataToSave = {
-          userId: user.uid,
-          pageName,
-          content: JSON.parse(JSON.stringify(content)),
-          lastUpdated: serverTimestamp(),
-          pageBackgroundColor,
-          published: publishedState,
-          thumbnailUrl,
+            userId: user.uid,
+            pageName,
+            content: JSON.parse(JSON.stringify(content)), // Deep copy
+            lastUpdated: serverTimestamp(),
+            pageBackgroundColor,
+            published: publishedState,
         };
-        transaction.set(pageDocRef, pageDataToSave, { merge: true });
+        batch.set(pageDocRef, pageDataToSave, { merge: true });
 
-        // 2. Update the user's list of pages
-        const userDocRef = doc(firestore, `users/${user.uid}`);
-        const userDoc = await transaction.get(userDocRef);
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          const pages = userData.pages || [];
-          const pageIndex = pages.findIndex((p: any) => p.pageId === pageId);
-          if (pageIndex !== -1) {
-            pages[pageIndex].pageName = pageName;
-            pages[pageIndex].thumbnailUrl = thumbnailUrl;
-            transaction.update(userDocRef, { pages: pages });
-          }
-        }
-
-        // 3. Update the published page document
+        // Data untuk koleksi 'publishedPages' (dokumen publik)
         const publicPageDocRef = doc(firestore, 'publishedPages', pageId);
         if (publishedState) {
-          const publicPageData = {
-            content: JSON.parse(JSON.stringify(content)),
-            pageName,
-            pageBackgroundColor,
-            userId: user.uid,
-          };
-          transaction.set(publicPageDocRef, publicPageData);
+            const publicPageData = {
+                content: JSON.parse(JSON.stringify(content)),
+                pageName,
+                pageBackgroundColor,
+                userId: user.uid,
+            };
+            batch.set(publicPageDocRef, publicPageData);
         } else {
-          transaction.delete(publicPageDocRef);
+            // Hapus dokumen publik jika halaman di-unpublish
+            batch.delete(publicPageDocRef);
         }
-      });
 
-      toast({ title: 'Page Saved!', description: 'Your changes have been successfully saved.' });
-      setIsDirty(false);
+        // Commit semua operasi tulis secara bersamaan
+        await batch.commit();
+
+        toast({ title: 'Page Saved!', description: 'Your changes have been successfully saved.' });
+        setIsDirty(false);
     } catch (error) {
-      console.error("Error saving page to Firestore: ", error);
-      toast({
-        variant: 'destructive',
-        title: 'Save Failed',
-        description: 'Could not save. Please check Firestore rules and console for errors.',
-      });
+        console.error("Error saving page to Firestore: ", error);
+        toast({
+            variant: 'destructive',
+            title: 'Save Failed',
+            description: 'Could not save. Please check Firestore rules and console for errors.',
+        });
     } finally {
-      setIsSaving(false);
+        setIsSaving(false);
     }
   };
 
@@ -378,7 +365,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
       setPublicUrl(`${window.location.origin}/p/${pageId}`);
     }
   }, [pageId]);
-  
+
   // ... (sisa JSX tidak perlu diubah)
   if (isUserLoading || (isPageLoading && pageDocRef)) {
     return (
@@ -387,7 +374,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
       </div>
     );
   }
-  
+
   if (pageData && user && pageData.userId !== user.uid) {
      return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -420,9 +407,9 @@ export function EditorClient({ pageId }: EditorClientProps) {
             <Button variant="outline" size="icon" onClick={() => router.push('/dashboard')}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <input 
-              type="text" 
-              value={pageName} 
+            <input
+              type="text"
+              value={pageName}
               onChange={(e) => {
                 setPageName(e.target.value)
                 setIsDirty(true)
@@ -460,7 +447,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
                     <AlertDialogHeader>
                     <AlertDialogTitle>Publish Settings</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Publishing your page makes it accessible to anyone with the public URL. 
+                        Publishing your page makes it accessible to anyone with the public URL.
                         You can unpublish it at any time.
                     </AlertDialogDescription>
                     </AlertDialogHeader>
@@ -504,11 +491,6 @@ export function EditorClient({ pageId }: EditorClientProps) {
                 onUpdatePageBackgroundColor={(color) => {
                   setPageBackgroundColor(color);
                   setIsDirty(true);
-                }}
-                thumbnailUrl={thumbnailUrl}
-                onUpdateThumbnailUrl={(url) => {
-                    setThumbnailUrl(url);
-                    setIsDirty(true);
                 }}
               />
             </div>
