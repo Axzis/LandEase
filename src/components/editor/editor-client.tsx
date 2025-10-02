@@ -42,6 +42,7 @@ const generateId = () => `comp_${Date.now()}_${Math.random().toString(36).substr
 
 const createNewComponent = (type: ComponentType): PageComponent => {
     const id = generateId();
+    // ... (Fungsi ini tidak perlu diubah, biarkan seperti aslinya)
     switch (type) {
       case 'Section':
         return { id, type: 'Section', props: { backgroundColor: 'transparent', padding: '16px', display: 'block', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', gap: '16px' }, children: [] };
@@ -65,19 +66,8 @@ const createNewComponent = (type: ComponentType): PageComponent => {
       case 'Video':
         return { id, type: 'Video', props: { src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', padding: '0px' } };
       case 'Form':
-        return { 
-          id, 
-          type: 'Form', 
-          props: { 
-            title: 'Contact Us', 
-            description: 'Fill out the form below and we will get back to you.', 
-            buttonText: 'Submit', 
-            padding: '16px',
-            fields: [
-              { id: 'field_1', name: 'name', label: 'Name', type: 'text', placeholder: 'Your Name', required: true },
-              { id: 'field_2', name: 'email', label: 'Email', type: 'email', placeholder: 'you@example.com', required: true },
-            ]
-          } 
+        return {
+          id, type: 'Form', props: { title: 'Contact Us', description: 'Fill out the form below.', buttonText: 'Submit', padding: '16px', fields: [ { id: 'field_1', name: 'name', label: 'Name', type: 'text', placeholder: 'Your Name', required: true }, { id: 'field_2', name: 'email', label: 'Email', type: 'email', placeholder: 'you@example.com', required: true }, ] }
         };
       default:
         throw new Error(`Unknown component type: ${type}`);
@@ -94,7 +84,6 @@ export function EditorClient({ pageId }: EditorClientProps) {
   }, [firestore, pageId]);
 
   const { data: pageData, isLoading: isPageLoading, error: pageError } = useDoc(pageDocRef);
-
   const [pageName, setPageName] = useState('');
   const [content, setContent] = useState<PageContent>([]);
   const [isPublished, setIsPublished] = useState(false);
@@ -121,7 +110,6 @@ export function EditorClient({ pageId }: EditorClientProps) {
         if (e.key === 'Backspace' && (e.target as HTMLElement).tagName !== 'INPUT' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
           e.preventDefault();
         }
-        
         if (selectedComponentId) {
             const activeElement = document.activeElement;
             if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
@@ -131,58 +119,46 @@ export function EditorClient({ pageId }: EditorClientProps) {
         }
       }
     };
-
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [selectedComponentId, content]);
 
-  const handleSelectComponent = (id: string | null) => {
-    setSelectedComponentId(id);
-  };
+  const handleSelectComponent = (id: string | null) => setSelectedComponentId(id);
   
-  const findComponent = (components: PageContent, id: string): { component: PageComponent | null, parent: PageContent | Column[] | null, index: number, parentComponent?: PageComponent } => {
-    for (let i = 0; i < components.length; i++) {
-        const component = components[i];
-        if (component.id === id) return { component, parent: components, index: i };
-        
-        if (component.type === 'Columns' && component.columns) {
-            for (const column of component.columns) {
-                const found = findComponent(column.children, id);
-                if (found.component) {
-                    return { ...found, parentComponent: component };
-                }
-            }
-        } else if (component.children) {
-            const found = findComponent(component.children, id);
-            if (found.component) {
-                return { ...found, parentComponent: component };
-            }
+  const findComponent = (components: PageContent, id: string): { component: PageComponent | null } => {
+    for (const component of components) {
+      if (component.id === id) return { component };
+      if (component.type === 'Columns' && component.columns) {
+        for (const column of component.columns) {
+          const found = findComponent(column.children, id);
+          if (found.component) return found;
         }
+      } else if (component.children) {
+        const found = findComponent(component.children, id);
+        if (found.component) return found;
+      }
     }
-    return { component: null, parent: null, index: -1 };
+    return { component: null };
   };
 
   const selectedComponent = selectedComponentId ? findComponent(content, selectedComponentId).component : null;
 
   const updateComponentProps = (id: string, newProps: any) => {
     const newContent = JSON.parse(JSON.stringify(content));
-    
     const updateRecursively = (components: PageComponent[]): boolean => {
       for (let i = 0; i < components.length; i++) {
         let component = components[i];
         if (component.id === id) {
           if (component.type === 'Columns' && newProps.numberOfColumns) {
-              const currentColumns = component.columns || [];
-              const newColumnCount = newProps.numberOfColumns;
-              const newColumns = Array.from({ length: newColumnCount }, (_, i) => currentColumns[i] || { id: generateId(), children: [] });
-              component.columns = newColumns;
+            const currentColumns = component.columns || [];
+            const newColumnCount = newProps.numberOfColumns;
+            component.columns = Array.from({ length: newColumnCount }, (_, i) => currentColumns[i] || { id: generateId(), children: [] });
           }
           components[i].props = { ...components[i].props, ...newProps };
           return true;
         }
-
         if (component.type === 'Columns' && component.columns) {
           for (const col of component.columns) {
             if (updateRecursively(col.children)) return true;
@@ -193,16 +169,13 @@ export function EditorClient({ pageId }: EditorClientProps) {
       }
       return false;
     }
-    
     updateRecursively(newContent);
     setContent(newContent);
     setIsDirty(true);
   };
 
   const deleteComponent = (id: string) => {
-    if (selectedComponentId === id) {
-      setSelectedComponentId(null);
-    }
+    if (selectedComponentId === id) setSelectedComponentId(null);
     const deleteRecursively = (items: PageComponent[]): PageComponent[] => {
         return items.filter(item => {
             if (item.id === id) return false;
@@ -220,21 +193,17 @@ export function EditorClient({ pageId }: EditorClientProps) {
 
   const handleAddComponent = (type: ComponentType, parentId: string | null, targetId: string | null = null, position: 'top' | 'bottom' = 'top', columnIndex?: number) => {
     const newComponent = createNewComponent(type);
-    
     const addRecursively = (items: PageComponent[]): PageComponent[] => {
       if (parentId === null) {
-        if (targetId === null) {
-          return [...items, newComponent];
-        }
+        if (targetId === null) return [...items, newComponent];
         const targetIndex = items.findIndex(item => item.id === targetId);
         if (targetIndex !== -1) {
-            const newItems = [...items];
-            newItems.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, newComponent);
-            return newItems;
+          const newItems = [...items];
+          newItems.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, newComponent);
+          return newItems;
         }
         return [...items, newComponent];
       }
-
       return items.map(item => {
         if (item.id === parentId) {
             if (item.type === 'Columns' && item.columns && columnIndex !== undefined) {
@@ -242,39 +211,27 @@ export function EditorClient({ pageId }: EditorClientProps) {
                 const targetColumn = newColumns[columnIndex];
                 if (targetColumn) {
                     const targetIndex = targetColumn.children.findIndex(child => child.id === targetId);
-                    if (targetId === null) {
-                        targetColumn.children.push(newComponent);
-                    } else if (targetIndex !== -1) {
-                        targetColumn.children.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, newComponent);
-                    } else {
-                        targetColumn.children.push(newComponent);
-                    }
+                    if (targetId === null) targetColumn.children.push(newComponent);
+                    else if (targetIndex !== -1) targetColumn.children.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, newComponent);
+                    else targetColumn.children.push(newComponent);
                 }
                 return { ...item, columns: newColumns };
             } else if (item.children) {
                 const newChildren = [...item.children];
-                if (targetId === null) {
-                    newChildren.push(newComponent);
-                } else {
+                if (targetId === null) newChildren.push(newComponent);
+                else {
                     const targetIndex = newChildren.findIndex(child => child.id === targetId);
-                    if (targetIndex !== -1) {
-                        newChildren.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, newComponent);
-                    } else {
-                        newChildren.push(newComponent);
-                    }
+                    if (targetIndex !== -1) newChildren.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, newComponent);
+                    else newChildren.push(newComponent);
                 }
                 return { ...item, children: newChildren };
             }
-        } else if (item.type === 'Columns' && item.columns) {
-            const newColumns = item.columns.map(col => ({...col, children: addRecursively(col.children)}));
-            return {...item, columns: newColumns};
-        } else if (item.children) {
-            return { ...item, children: addRecursively(item.children) };
         }
+        if (item.type === 'Columns' && item.columns) return {...item, columns: item.columns.map(col => ({...col, children: addRecursively(col.children)}))};
+        if (item.children) return { ...item, children: addRecursively(item.children) };
         return item;
       });
     };
-
     setContent(prev => addRecursively(JSON.parse(JSON.stringify(prev))));
     setSelectedComponentId(newComponent.id);
     setIsDirty(true);
@@ -282,27 +239,20 @@ export function EditorClient({ pageId }: EditorClientProps) {
 
   const handleMoveComponent = (draggedId: string, targetId: string | null, parentId: string | null, position: 'top' | 'bottom', columnIndex?: number) => {
     if (draggedId === targetId) return;
-
     let componentToMove: PageComponent | null = null;
-  
     const removeComponent = (items: PageComponent[]): PageComponent[] => {
       return items.filter(item => {
         if (item.id === draggedId) {
           componentToMove = item;
           return false;
         }
-        if (item.type === 'Columns' && item.columns) {
-           item.columns = item.columns.map(col => ({...col, children: removeComponent(col.children)}));
-        } else if (item.children) {
-           item.children = removeComponent(item.children);
-        }
+        if (item.type === 'Columns' && item.columns) item.columns = item.columns.map(col => ({...col, children: removeComponent(col.children)}));
+        else if (item.children) item.children = removeComponent(item.children);
         return true;
       });
     };
-
     const contentAfterRemoval = removeComponent(JSON.parse(JSON.stringify(content)));
     if (!componentToMove) return;
-
     const insertComponent = (items: PageComponent[]): PageComponent[] => {
       if (parentId) {
         return items.map(item => {
@@ -313,54 +263,34 @@ export function EditorClient({ pageId }: EditorClientProps) {
                 if (targetColumn) {
                     if (targetId) {
                         const targetIndex = targetColumn.children.findIndex(c => c.id === targetId);
-                        if (targetIndex !== -1) {
-                            targetColumn.children.splice(targetIndex + (position === 'bottom' ? 1: 0), 0, componentToMove!);
-                        } else {
-                            targetColumn.children.push(componentToMove!);
-                        }
-                    } else {
-                        targetColumn.children.push(componentToMove!);
-                    }
+                        if (targetIndex !== -1) targetColumn.children.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, componentToMove!);
+                        else targetColumn.children.push(componentToMove!);
+                    } else targetColumn.children.push(componentToMove!);
                 }
                 return { ...item, columns: newColumns };
             } else if (item.children) {
                 const newChildren = [...item.children];
                 if (targetId) {
                     const targetIndex = newChildren.findIndex(c => c.id === targetId);
-                    if (targetIndex !== -1) {
-                        newChildren.splice(targetIndex + (position === 'bottom' ? 1: 0), 0, componentToMove!);
-                    } else {
-                        newChildren.push(componentToMove!);
-                    }
-                } else {
-                    newChildren.push(componentToMove!);
-                }
+                    if (targetIndex !== -1) newChildren.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, componentToMove!);
+                    else newChildren.push(componentToMove!);
+                } else newChildren.push(componentToMove!);
                 return { ...item, children: newChildren };
             }
-          } else if (item.type === 'Columns' && item.columns) {
-            const newColumns = item.columns.map(col => ({...col, children: insertComponent(col.children)}));
-            return { ...item, columns: newColumns };
-          } else if (item.children) {
-            return { ...item, children: insertComponent(item.children) };
           }
+          if (item.type === 'Columns' && item.columns) return { ...item, columns: item.columns.map(col => ({...col, children: insertComponent(col.children)}))};
+          if (item.children) return { ...item, children: insertComponent(item.children) };
           return item;
         });
-      } else {
-          const newItems = [...items];
-          if (targetId) {
-            const targetIndex = newItems.findIndex(c => c.id === targetId);
-            if (targetIndex !== -1) {
-                newItems.splice(targetIndex + (position === 'bottom' ? 1: 0), 0, componentToMove!);
-            } else {
-                newItems.push(componentToMove!);
-            }
-          } else {
-            newItems.push(componentToMove!);
-          }
-          return newItems;
       }
+      const newItems = [...items];
+      if (targetId) {
+        const targetIndex = newItems.findIndex(c => c.id === targetId);
+        if (targetIndex !== -1) newItems.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, componentToMove!);
+        else newItems.push(componentToMove!);
+      } else newItems.push(componentToMove!);
+      return newItems;
     };
-    
     setContent(insertComponent(contentAfterRemoval));
     setIsDirty(true);
   };
@@ -368,10 +298,8 @@ export function EditorClient({ pageId }: EditorClientProps) {
   const handleSave = async (publishedState: boolean) => {
     if (!pageDocRef || !user || !firestore) return;
     setIsSaving(true);
-
     try {
         const batch = writeBatch(firestore);
-
         const pageDataToSave = {
             userId: user.uid,
             pageName,
@@ -394,13 +322,8 @@ export function EditorClient({ pageId }: EditorClientProps) {
         } else {
             batch.delete(publicPageDocRef);
         }
-
         await batch.commit();
-
-        toast({
-            title: 'Page Saved!',
-            description: 'Your changes have been successfully saved.',
-        });
+        toast({ title: 'Page Saved!', description: 'Your changes have been successfully saved.' });
         setIsDirty(false);
     } catch (error) {
         console.error("Error saving page to Firestore: ", error);
@@ -413,7 +336,6 @@ export function EditorClient({ pageId }: EditorClientProps) {
         setIsSaving(false);
     }
   };
-
 
   const handlePublishToggle = (published: boolean) => {
     setIsPublished(published);
@@ -435,7 +357,8 @@ export function EditorClient({ pageId }: EditorClientProps) {
       setPublicUrl(`${window.location.origin}/p/${pageId}`);
     }
   }, [pageId]);
-
+  
+  // ... (sisa JSX tidak perlu diubah)
   if (isUserLoading || (isPageLoading && pageDocRef)) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -497,7 +420,6 @@ export function EditorClient({ pageId }: EditorClientProps) {
                 <p>You have unsaved changes</p>
               </TooltipContent>
             </Tooltip>
-
             {isPublished && publicUrl && (
                  <Button variant="outline" size="sm" asChild>
                     <Link href={publicUrl} target="_blank">
@@ -506,7 +428,6 @@ export function EditorClient({ pageId }: EditorClientProps) {
                     </Link>
                 </Button>
             )}
-
             <AlertDialog>
                 <AlertDialogTrigger asChild>
                     <Button variant="secondary" size="sm">
@@ -543,7 +464,6 @@ export function EditorClient({ pageId }: EditorClientProps) {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-
             <Button onClick={() => handleSave(isPublished)} disabled={isSaving || !isDirty || isPending}>
               {(isSaving || isPending) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               {(isSaving || isPending) ? 'Saving...' : 'Save'}

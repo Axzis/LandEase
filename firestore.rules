@@ -47,8 +47,7 @@ service cloud.firestore {
         return request.auth != null && request.auth.uid == pageDoc.data.userId;
       }
       
-      // 🔥 PERBAIKAN UTAMA ADA DI SINI 🔥
-      // Izinkan semua operasi tulis (simpan, publish, unpublish) hanya untuk pemilik halaman.
+      // Mengizinkan operasi tulis (simpan, publish, unpublish) hanya untuk pemilik halaman.
       allow write: if isOriginalPageOwner();
     }
   }
