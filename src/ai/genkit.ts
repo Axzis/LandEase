@@ -6,31 +6,35 @@ import {config} from 'dotenv';
 config();
 
 let googleAiPlugin: Plugin<[GoogleAIPlugin] | []>;
-
-// Check if the environment variable exists AND is not an empty string
 const credsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 
-if (credsJson && credsJson.trim().startsWith('{') && credsJson.trim().endsWith('}')) {
-  try {
+try {
+  if (credsJson) {
     const serviceAccount = JSON.parse(credsJson);
-    googleAiPlugin = googleAI({
-      credentials: {
-        client_email: serviceAccount.client_email,
-        private_key: serviceAccount.private_key,
-      },
-    });
-  } catch (e) {
-    console.error('Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON. Using default Genkit initialization.', e);
-    // Fallback to default initialization if JSON parsing fails
+    // Basic validation to ensure we have a service account-like object
+    if (serviceAccount.client_email && serviceAccount.private_key) {
+      googleAiPlugin = googleAI({
+        credentials: {
+          client_email: serviceAccount.client_email,
+          private_key: serviceAccount.private_key,
+        },
+      });
+    } else {
+      // The JSON is valid but doesn't look like a service account.
+      // Fallback to default initialization.
+      console.error('GOOGLE_APPLICATION_CREDENTIALS_JSON is valid JSON but not a valid service account. Using default Genkit initialization.');
+      googleAiPlugin = googleAI();
+    }
+  } else {
+    // If credsJson is null, undefined, or an empty string, use default initialization.
     googleAiPlugin = googleAI();
   }
-} else {
-  // Default initialization if the environment variable is not set or invalid
-  if (credsJson && credsJson.trim() !== '') {
-    console.error('GOOGLE_APPLICATION_CREDENTIALS_JSON is set but is not a valid JSON object. Using default Genkit initialization.');
-  }
+} catch (e) {
+  // This will catch any error from JSON.parse() if credsJson is malformed.
+  console.error('Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON. Using default Genkit initialization.', e);
   googleAiPlugin = googleAI();
 }
+
 
 export const ai = genkit({
   plugins: [googleAiPlugin],
