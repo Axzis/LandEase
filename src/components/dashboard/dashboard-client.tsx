@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { collection, doc, addDoc, serverTimestamp, writeBatch, updateDoc, arrayUnion } from 'firebase/firestore';
-import { useAuth, useFirestore, useUser, useDoc, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { collection, doc, serverTimestamp, writeBatch, arrayUnion } from 'firebase/firestore';
+import { useFirestore, useUser, useDoc, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
@@ -11,10 +11,12 @@ import { PageGridSkeleton } from '@/components/dashboard/page-grid-skeleton';
 import { EmptyState } from '@/components/dashboard/empty-state';
 import { Logo } from '@/components/logo';
 import { signOut } from 'firebase/auth';
+import { useAuth } from '@/firebase/auth/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { createDefaultPageContent } from '@/lib/utils';
 import { Loader2, LogOut, PlusCircle, Search } from 'lucide-react';
 import { Input } from '../ui/input';
+import { CreatePageDialog } from './create-page-dialog';
 
 interface UserPageLink {
   pageId: string;
@@ -34,6 +36,7 @@ export function DashboardClient() {
 
   const [isCreatingPage, setIsCreatingPage] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // Get the user document which contains the list of pages
   const userDocRef = useMemo(() => {
@@ -50,13 +53,12 @@ export function DashboardClient() {
     );
   }, [userData, searchTerm]);
 
-  const handleCreatePage = async () => {
+  const handleCreatePage = async (pageName: string) => {
     if (!user || !firestore) return;
     setIsCreatingPage(true);
 
     try {
         const batch = writeBatch(firestore);
-        const pageName = 'Untitled Page';
 
         // 1. Create the new page document in the 'pages' collection
         const newPageRef = doc(collection(firestore, 'pages'));
@@ -84,9 +86,9 @@ export function DashboardClient() {
         console.error("Error creating page", e);
         if (e.code === 'permission-denied') {
             const permissionError = new FirestorePermissionError({
-                path: e.customData.path, // Assuming error has this custom data
+                path: `pages/<new_page>`, 
                 operation: 'write',
-                requestResourceData: e.customData.requestData
+                requestResourceData: { pageName }
             });
             errorEmitter.emit('permission-error', permissionError);
         } else {
@@ -94,6 +96,7 @@ export function DashboardClient() {
         }
     } finally {
         setIsCreatingPage(false);
+        setIsDialogOpen(false);
     }
   };
 
@@ -129,14 +132,17 @@ export function DashboardClient() {
       <main className="flex-grow container py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold tracking-tight">Your Pages</h1>
-          <Button onClick={handleCreatePage} disabled={isCreatingPage}>
-            {isCreatingPage ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
+          <CreatePageDialog 
+            isOpen={isDialogOpen}
+            setIsOpen={setIsDialogOpen}
+            onCreatePage={handleCreatePage} 
+            isCreating={isCreatingPage}
+          >
+            <Button>
               <PlusCircle className="mr-2 h-4 w-4" />
-            )}
-            Create New Page
-          </Button>
+              Create New Page
+            </Button>
+          </CreatePageDialog>
         </div>
         
         <div className="mb-8">
@@ -174,7 +180,7 @@ export function DashboardClient() {
                 </div>
             )
         ) : (
-          <EmptyState onCreatePage={handleCreatePage} />
+          <EmptyState onTriggerCreate={() => setIsDialogOpen(true)} />
         )}
       </main>
     </div>
