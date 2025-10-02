@@ -1,0 +1,11 @@
+const CHUNK_PUBLIC_PATH = "server/app/api/imagekit/auth/route.js";
+const runtime = require("../../../../chunks/[turbopack]_runtime.js");
+runtime.loadChunk("server/chunks/node_modules_next_3e7dffe8._.js");
+runtime.loadChunk("server/chunks/node_modules_lodash_lodash_d273580f.js");
+runtime.loadChunk("server/chunks/node_modules_mime-db_9ebaabbe._.js");
+runtime.loadChunk("server/chunks/node_modules_axios_dist_node_axios_cjs_48309a18._.js");
+runtime.loadChunk("server/chunks/node_modules_ef14e190._.js");
+runtime.loadChunk("server/chunks/[root-of-the-server]__88c7cdc6._.js");
+runtime.getOrInstantiateRuntimeModule("[project]/.next-internal/server/app/api/imagekit/auth/route/actions.js [app-rsc] (server actions loader, ecmascript)", CHUNK_PUBLIC_PATH);
+runtime.getOrInstantiateRuntimeModule("[project]/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/src/app/api/imagekit/auth/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)", CHUNK_PUBLIC_PATH);
+module.exports = runtime.getOrInstantiateRuntimeModule("[project]/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/src/app/api/imagekit/auth/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)", CHUNK_PUBLIC_PATH).exports;

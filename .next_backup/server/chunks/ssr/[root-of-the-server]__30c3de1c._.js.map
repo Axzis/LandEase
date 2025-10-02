@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 31, "column": 0}, "map": {"version":3,"sources":["file:///home/user/studio/src/components/current-year.tsx"],"sourcesContent":["'use client';\n\nimport { useState, useEffect } from 'react';\n\nexport function CurrentYear() {\n  const [year, setYear] = useState<number | null>(null);\n\n  useEffect(() => {\n    setYear(new Date().getFullYear());\n  }, []);\n\n  // Render the server-side generated year first, then update on client mount\n  // This ensures the initial render is always consistent.\n  return <>{year || new Date().getFullYear()}</>;\n}\n"],"names":[],"mappings":";;;;AAEA;AAFA;;;AAIO,SAAS;IACd,MAAM,CAAC,MAAM,QAAQ,GAAG,CAAA,GAAA,qMAAA,CAAA,WAAQ,AAAD,EAAiB;IAEhD,CAAA,GAAA,qMAAA,CAAA,YAAS,AAAD,EAAE;QACR,QAAQ,IAAI,OAAO,WAAW;IAChC,GAAG,EAAE;IAEL,2EAA2E;IAC3E,wDAAwD;IACxD,qBAAO;kBAAG,QAAQ,IAAI,OAAO,WAAW;;AAC1C","debugId":null}}]
+}

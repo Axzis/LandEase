@@ -1,0 +1,6 @@
+{
+  "/api/imagekit/auth/route": "app/api/imagekit/auth/route.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/editor/[pageId]/page": "app/editor/[pageId]/page.js",
+  "/page": "app/page.js"
+}

@@ -1,0 +1,28 @@
+{
+  "node": {
+    "40ae8fd03a54206aba42855798cdbee2b7854a41c9": {
+      "workers": {
+        "app/editor/[pageId]/page": {
+          "moduleId": "[project]/.next-internal/server/app/editor/[pageId]/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/ai/flows/generate-headline.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/src/ai/flows/generate-text-block.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/editor/[pageId]/page": "action-browser"
+      }
+    },
+    "40efcd73a39efc784037be41094adc9ba475eb5595": {
+      "workers": {
+        "app/editor/[pageId]/page": {
+          "moduleId": "[project]/.next-internal/server/app/editor/[pageId]/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/ai/flows/generate-headline.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/src/ai/flows/generate-text-block.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/editor/[pageId]/page": "action-browser"
+      }
+    }
+  },
+  "edge": {},
+  "encryptionKey": "6Y2AeJGU6VORsR2S9/3k061csIOXyx3bImuikKIfsL0="
+}

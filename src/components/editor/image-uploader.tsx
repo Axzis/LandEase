@@ -1,16 +1,20 @@
+// src/components/editor/image-uploader.tsx
+
 'use client';
 
 import { IKContext, IKUpload } from 'imagekitio-react';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import React from 'react';
-import { Label } from '@/components/ui/label'; // <-- TAMBAHKAN BARIS INI
+import React, { useState, useEffect } from 'react'; // Impor useState dan useEffect
+import { Label } from '@/components/ui/label';
 
 // Ganti dengan kredensial ImageKit Anda dari file .env.local
 const publicKey = process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY;
 const urlEndpoint = process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT;
-const authenticationEndpoint = '/api/imagekit/auth';
+
+// Endpoint relatif tetap didefinisikan di sini
+const authEndpointPath = '/api/imagekit/auth';
 
 interface ImageUploaderProps {
   onUploadSuccess: (url: string) => void;
@@ -18,10 +22,24 @@ interface ImageUploaderProps {
 
 export function ImageUploader({ onUploadSuccess }: ImageUploaderProps) {
   const { toast } = useToast();
+  // State untuk menyimpan URL absolut
+  const [absoluteAuthEndpoint, setAbsoluteAuthEndpoint] = useState('');
+
+  // useEffect akan berjalan di sisi klien untuk mendapatkan origin URL
+  useEffect(() => {
+    // window.location.origin akan memberikan URL dasar (e.g., "https://....cloudworkstations.dev")
+    setAbsoluteAuthEndpoint(window.location.origin + authEndpointPath);
+  }, []);
+
 
   if (!publicKey || !urlEndpoint) {
     console.error("ImageKit public key or URL endpoint is not configured.");
     return <p className="text-destructive text-sm">Image Uploader is not configured.</p>;
+  }
+
+  // Jangan render apapun sampai URL absolut siap
+  if (!absoluteAuthEndpoint) {
+    return null;
   }
 
   const handleUploadStart = () => {
@@ -32,8 +50,7 @@ export function ImageUploader({ onUploadSuccess }: ImageUploaderProps) {
   };
 
   const handleUploadSuccess = (result: any) => {
-    const imageUrl = result.url;
-    onUploadSuccess(imageUrl); // Kirim URL kembali ke parent component
+    onUploadSuccess(result.url);
     toast({
       title: 'Upload Successful!',
       description: 'Your image has been added.',
@@ -41,13 +58,11 @@ export function ImageUploader({ onUploadSuccess }: ImageUploaderProps) {
   };
 
   const handleUploadError = (err: any) => {
-    // Log error yang lebih detail ke konsol
     console.error("ImageKit upload error detail:", err);
     toast({
       variant: 'destructive',
       title: 'Upload Failed',
-      // Tampilkan pesan error yang lebih informatif
-      description: err.message || 'An unknown error occurred during upload. Check console for details.',
+      description: err.message || 'An unknown error occurred. Check the browser console and network tab for details.',
     });
   };
 
@@ -55,10 +70,10 @@ export function ImageUploader({ onUploadSuccess }: ImageUploaderProps) {
     <IKContext
       publicKey={publicKey}
       urlEndpoint={urlEndpoint}
-      authenticationEndpoint={authenticationEndpoint}
+      authenticationEndpoint={absoluteAuthEndpoint} // <-- GUNAKAN URL ABSOLUT DI SINI
     >
       <IKUpload
-        fileName="new-image.jpg" // Nama file default
+        fileName="new-image.jpg"
         onUploadStart={handleUploadStart}
         onSuccess={handleUploadSuccess}
         onError={handleUploadError}
