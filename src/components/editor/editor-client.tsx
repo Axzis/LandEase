@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useTransition } from 'react';
 import { doc, setDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -378,7 +378,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
   const handleSave = async (publishedState: boolean) => {
     if (!pageDocRef || !user || !firestore) return;
     setIsSaving(true);
-    
+
     try {
       const batch = writeBatch(firestore);
 
@@ -391,7 +391,6 @@ export function EditorClient({ pageId }: EditorClientProps) {
         pageBackgroundColor,
         published: publishedState,
       };
-      // 'pageDocRef' sudah benar mengarah ke 'pages/{pageId}'
       batch.set(pageDocRef, pageDataToSave, { merge: true });
 
       // 2. Buat referensi ke koleksi publik
@@ -412,7 +411,6 @@ export function EditorClient({ pageId }: EditorClientProps) {
         batch.delete(publicPageDocRef);
       }
 
-      // Jalankan semua operasi secara bersamaan
       await batch.commit();
 
       toast({
@@ -420,13 +418,28 @@ export function EditorClient({ pageId }: EditorClientProps) {
         description: 'Your changes have been successfully saved.',
       });
       setIsDirty(false);
-    } catch (error) {
-      console.error("Error saving page: ", error);
-      toast({
-        variant: 'destructive',
-        title: 'Save Failed',
-        description: 'Could not save your changes.',
-      });
+    } catch (error: any) {
+      if (error.code === 'permission-denied') {
+        // This is where we create and emit the contextual error
+        const permissionError = new FirestorePermissionError({
+          path: pageDocRef.path, // We can reference the private path as it's the source of truth
+          operation: 'write',    // A batch can be a create or update
+          requestResourceData: {
+            page: { path: pageDocRef.path, data: { pageName, published: publishedState, pageBackgroundColor } },
+            publishedPage: publishedState 
+              ? { path: `publishedPages/${pageId}`, data: { pageName, pageBackgroundColor } }
+              : { path: `publishedPages/${pageId}`, data: null }
+          }
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      } else {
+        console.error("Error saving page: ", error);
+        toast({
+          variant: 'destructive',
+          title: 'Save Failed',
+          description: 'Could not save your changes. Check the console for more details.',
+        });
+      }
     } finally {
       setIsSaving(false);
     }
@@ -600,6 +613,8 @@ export function EditorClient({ pageId }: EditorClientProps) {
     </TooltipProvider>
   );
 }
+
+    
 
     
 

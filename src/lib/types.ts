@@ -140,6 +140,8 @@ export interface PublishedPage {
     content: PageContent;
     pageName: string;
     pageBackgroundColor: string;
-    pageId: string;
     userId: string;
+    pageId: string;
 }
+
+    
