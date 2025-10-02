@@ -1,30 +1,34 @@
-
-import { NextResponse } from 'next/server';
-// Gunakan library 'imagekit' Node.js di sisi server
 import ImageKit from 'imagekit';
+import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
   try {
-    // Inisialisasi SDK di sini untuk memastikan variabel env dimuat dengan benar
-    // oleh Next.js.
-    const imageKit = new ImageKit({
-      publicKey: process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY!,
-      privateKey: process.env.IMAGEKIT_PRIVATE_KEY!,
-      urlEndpoint: process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT!,
+    // Pastikan semua environment variables ada di sini, di dalam handler
+    const publicKey = process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY;
+    const privateKey = process.env.IMAGEKIT_PRIVATE_KEY;
+    const urlEndpoint = process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT;
+
+    if (!publicKey || !privateKey || !urlEndpoint) {
+      // Ini akan mengirim error 500 jika variabel tidak ada
+      throw new Error("Variabel lingkungan ImageKit tidak diatur dengan lengkap di server.");
+    }
+
+    // Pindahkan inisialisasi ImageKit ke dalam blok try
+    const imagekit = new ImageKit({
+      publicKey: publicKey,
+      privateKey: privateKey,
+      urlEndpoint: urlEndpoint,
     });
-    
-    // Metode ini sekarang akan menggunakan privateKey yang disediakan untuk menghasilkan
-    // tanda tangan (signature) yang valid, bersama dengan token dan waktu kedaluwarsa.
-    const authenticationParameters = imageKit.getAuthenticationParameters();
+
+    const authenticationParameters = imagekit.getAuthenticationParameters();
     
     return NextResponse.json(authenticationParameters);
-
-  } catch (error) {
-    console.error("Error getting ImageKit authentication parameters:", error);
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-    // Kembalikan pesan error yang lebih informatif
+  } catch (error: any) {
+    // Tangkap semua error, termasuk error inisialisasi
+    console.error("[ImageKit Auth Error]:", error.message);
+    
     return NextResponse.json(
-      { error: "Could not get authentication parameters.", details: errorMessage },
+      { error: "Gagal mengautentikasi dengan ImageKit. Periksa konsol server untuk detail." },
       { status: 500 }
     );
   }
