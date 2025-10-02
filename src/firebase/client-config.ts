@@ -5,10 +5,10 @@
 // executed in the browser.
 
 export const firebaseConfig = {
-  apiKey: "AIzaSyDrWsPeG-OPyqkDc8di0zxLGXRd7xMW_6I",
-  authDomain: "landease-1g97g.firebaseapp.com",
-  projectId: "landease-1g97g",
-  storageBucket: "landease-1g97g.firebasestorage.app",
-  messagingSenderId: "121206095671",
-  appId: "1:121206095671:web:4abd4a6ea473c72fb0e4b2"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
