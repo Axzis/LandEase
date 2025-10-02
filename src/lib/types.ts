@@ -1,9 +1,4 @@
 
-
-
-
-
-
 export type ComponentType = 'Section' | 'Heading' | 'Text' | 'Button' | 'Image' | 'Navbar' | 'Footer' | 'Columns' | 'Video' | 'Form';
 
 export interface BaseComponent {

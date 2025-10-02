@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useMemo } from 'react';
@@ -44,7 +45,7 @@ export default function PublicPage({ params }: { params: { pageId: string } }) {
       <EditorCanvas
         content={pageData.content}
         readOnly
-        pageId={pageId}
+        pageId={pageData.pageId}
         pageName={pageData.pageName}
       />
     </div>

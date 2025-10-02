@@ -404,7 +404,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
           content: JSON.parse(JSON.stringify(content)), // Deep copy
           pageName,
           pageBackgroundColor,
-          pageId,
+          pageId: pageId,
           userId: user.uid,
         };
         batch.set(publicPageDocRef, publicPageData);
