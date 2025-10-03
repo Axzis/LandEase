@@ -1,13 +1,15 @@
+import { genkit } from 'genkit';
+import { nextjsPlugin } from '@genkit-ai/next';
+import { firebase } from '@genkit-ai/firebase';
+import { googleAI } from '@genkit-ai/googleai';
 
-import {genkit, type Plugin} from 'genkit';
-import {googleAI, type GoogleAIPlugin} from '@genkit-ai/googleai';
-
-// Next.js handles .env file loading automatically.
-// The manual import and call to dotenv is not needed and can cause issues.
-
-// The googleAI() plugin automatically finds credentials from the environment,
-// including GOOGLE_APPLICATION_CREDENTIALS_JSON.
-// The complex manual parsing logic is brittle and has been removed.
-export const ai = genkit({
-  plugins: [googleAI()],
+export default genkit({
+  plugins: [
+    // Inisialisasi plugin Next.js di sini
+    nextjsPlugin(),
+    firebase(),
+    googleAI(),
+  ],
+  logLevel: 'debug',
+  enableTracingAndMetrics: true,
 });
