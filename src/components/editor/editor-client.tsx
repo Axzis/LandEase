@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useTransition } from 'react';
+import { useState, useEffect, useMemo, useTransition, useCallback } from 'react';
 import { doc, setDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { useFirestore, useDoc, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -17,7 +17,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from "@/components/ui/tooltip";
 import { Separator } from '../ui/separator';
 import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
@@ -38,45 +38,49 @@ interface EditorClientProps {
   pageId: string;
 }
 
+// Helper function untuk generate ID yang unik
 const generateId = () => `comp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
+// Helper function untuk membuat komponen baru, dipindahkan ke luar komponen utama
 const createNewComponent = (type: ComponentType): PageComponent => {
-    const id = generateId();
-    // ... (Fungsi ini tidak perlu diubah, biarkan seperti aslinya)
-    switch (type) {
-      case 'Section':
-        return { id, type: 'Section', props: { backgroundColor: 'transparent', padding: '16px', display: 'block', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', gap: '16px' }, children: [] };
-      case 'Columns':
-          const createColumns = (count: number): Column[] => {
-              return Array.from({ length: count }, () => ({ id: generateId(), children: [] }));
-          }
-          return { id, type: 'Columns', props: { numberOfColumns: 2, gap: '16px' }, columns: createColumns(2) };
-      case 'Heading':
-        return { id, type: 'Heading', props: { text: 'New Heading', level: 'h2', align: 'left', padding: '0px' } };
-      case 'Text':
-        return { id, type: 'Text', props: { text: 'This is a new text block. Click to edit.', align: 'left', fontFamily: 'Inter', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none', padding: '0px' } };
-      case 'Button':
-        return { id, type: 'Button', props: { text: 'Click Me', href: '#', align: 'left', padding: '0px' } };
-      case 'Image':
-        return { id, type: 'Image', props: { src: 'https://placehold.co/600x400', alt: 'Placeholder image', width: 600, height: 400, padding: '0px' } };
-      case 'Navbar':
-        return { id, type: 'Navbar', props: { backgroundColor: '#FFFFFF', logoText: 'LandEase', logoImageUrl: '', links: [{text: 'Home', href: '#'}, {text: 'About', href: '#'}, {text: 'Contact', href: '#'}] } };
-      case 'Footer':
-        return { id, type: 'Footer', props: { backgroundColor: '#1F2937', copyrightText: `© ${new Date().getFullYear()} Your Company. All rights reserved.` } };
-      case 'Video':
-        return { id, type: 'Video', props: { src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', padding: '0px' } };
-      case 'Form':
-        return {
-          id, type: 'Form', props: { title: 'Contact Us', description: 'Fill out the form below.', buttonText: 'Submit', padding: '16px', fields: [ { id: 'field_1', name: 'name', label: 'Name', type: 'text', placeholder: 'Your Name', required: true }, { id: 'field_2', name: 'email', label: 'Email', type: 'email', placeholder: 'you@example.com', required: true }, ] }
-        };
-      default:
-        throw new Error(`Unknown component type: ${type}`);
-    }
+  const id = generateId();
+  switch (type) {
+    case 'Section':
+      return { id, type: 'Section', props: { backgroundColor: 'transparent', padding: '16px', display: 'block', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', gap: '16px' }, children: [] };
+    case 'Columns':
+      const createColumns = (count: number): Column[] => {
+        return Array.from({ length: count }, () => ({ id: generateId(), children: [] }));
+      };
+      return { id, type: 'Columns', props: { numberOfColumns: 2, gap: '16px' }, columns: createColumns(2) };
+    case 'Heading':
+      return { id, type: 'Heading', props: { text: 'New Heading', level: 'h2', align: 'left', padding: '0px' } };
+    case 'Text':
+      return { id, type: 'Text', props: { text: 'This is a new text block. Click to edit.', align: 'left', fontFamily: 'Inter', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none', padding: '0px' } };
+    case 'Button':
+      return { id, type: 'Button', props: { text: 'Click Me', href: '#', align: 'left', padding: '0px' } };
+    case 'Image':
+      return { id, type: 'Image', props: { src: 'https://placehold.co/600x400', alt: 'Placeholder image', width: 600, height: 400, padding: '0px' } };
+    case 'Navbar':
+      return { id, type: 'Navbar', props: { backgroundColor: '#FFFFFF', logoText: 'LandEase', logoImageUrl: '', links: [{text: 'Home', href: '#'}, {text: 'About', href: '#'}, {text: 'Contact', href: '#'}] } };
+    case 'Footer':
+      return { id, type: 'Footer', props: { backgroundColor: '#1F2937', copyrightText: `© ${new Date().getFullYear()} Your Company. All rights reserved.` } };
+    case 'Video':
+      return { id, type: 'Video', props: { src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', padding: '0px' } };
+    case 'Form':
+      return {
+        id, type: 'Form', props: { title: 'Contact Us', description: 'Fill out the form below.', buttonText: 'Submit', padding: '16px', fields: [ { id: 'field_1', name: 'name', label: 'Name', type: 'text', placeholder: 'Your Name', required: true }, { id: 'field_2', name: 'email', label: 'Email', type: 'email', placeholder: 'you@example.com', required: true }, ] }
+      };
+    default:
+      throw new Error(`Unknown component type: ${type}`);
+  }
 };
 
 export function EditorClient({ pageId }: EditorClientProps) {
   const firestore = useFirestore();
   const { user, loading: isUserLoading } = useUser();
+  const router = useRouter();
+  const { toast } = useToast();
+  const [isPending, startTransition] = useTransition();
 
   const pageDocRef = useMemo(() => {
     if (!firestore || !pageId) return null;
@@ -91,43 +95,24 @@ export function EditorClient({ pageId }: EditorClientProps) {
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
-  const { toast } = useToast();
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+
+  // Deep clone utility (gunakan bila perlu, untuk obj yang kompleks pertimbangkan library seperti 'lodash.clonedeep')
+  const deepClone = <T,>(obj: T): T => JSON.parse(JSON.stringify(obj));
 
   useEffect(() => {
     if (pageData) {
       setPageName(pageData.pageName || '');
-      setContent(pageData.content || []);
+      // Pastikan content di-set dengan deep copy jika ada objek di dalamnya
+      // Hal ini mencegah mutasi langsung pada data Firestore yang di-cache
+      setContent(deepClone(pageData.content || []));
       setIsPublished(pageData.published || false);
       setPageBackgroundColor(pageData.pageBackgroundColor || '#FFFFFF');
+      setIsDirty(false); // Reset dirty state setelah memuat data
     }
   }, [pageData]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.key === 'Delete' || e.key === 'Backspace')) {
-        if (e.key === 'Backspace' && (e.target as HTMLElement).tagName !== 'INPUT' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
-          e.preventDefault();
-        }
-        if (selectedComponentId) {
-            const activeElement = document.activeElement;
-            if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
-                return;
-            }
-          deleteComponent(selectedComponentId);
-        }
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [selectedComponentId, content]);
-
-  const handleSelectComponent = (id: string | null) => setSelectedComponentId(id);
-
-  const findComponent = (components: PageContent, id: string): { component: PageComponent | null } => {
+  // Fungsi rekursif untuk mencari komponen
+  const findComponent = useCallback((components: PageContent, id: string): { component: PageComponent | null } => {
     for (const component of components) {
       if (component.id === id) return { component };
       if (component.type === 'Columns' && component.columns) {
@@ -141,222 +126,292 @@ export function EditorClient({ pageId }: EditorClientProps) {
       }
     }
     return { component: null };
-  };
+  }, []); // Dependencies kosong karena hanya menerima arguments
 
-  const selectedComponent = selectedComponentId ? findComponent(content, selectedComponentId).component : null;
+  const selectedComponent = useMemo(() => {
+    return selectedComponentId ? findComponent(content, selectedComponentId).component : null;
+  }, [selectedComponentId, content, findComponent]);
 
-  const updateComponentProps = (id: string, newProps: any) => {
-    const newContent = JSON.parse(JSON.stringify(content));
-    const updateRecursively = (components: PageComponent[]): boolean => {
-      for (let i = 0; i < components.length; i++) {
-        let component = components[i];
-        if (component.id === id) {
-          if (component.type === 'Columns' && newProps.numberOfColumns) {
-            const currentColumns = component.columns || [];
-            const newColumnCount = newProps.numberOfColumns;
-            component.columns = Array.from({ length: newColumnCount }, (_, i) => currentColumns[i] || { id: generateId(), children: [] });
-          }
-          components[i].props = { ...components[i].props, ...newProps };
-          return true;
-        }
-        if (component.type === 'Columns' && component.columns) {
-          for (const col of component.columns) {
-            if (updateRecursively(col.children)) return true;
-          }
-        } else if (component.children) {
-          if (updateRecursively(component.children)) return true;
-        }
-      }
-      return false;
-    }
-    updateRecursively(newContent);
-    setContent(newContent);
-    setIsDirty(true);
-  };
+  const handleSelectComponent = useCallback((id: string | null) => {
+    setSelectedComponentId(id);
+  }, []);
 
-  const deleteComponent = (id: string) => {
-    if (selectedComponentId === id) setSelectedComponentId(null);
-    const deleteRecursively = (items: PageComponent[]): PageComponent[] => {
-        return items.filter(item => {
-            if (item.id === id) return false;
-            if (item.type === 'Columns' && item.columns) {
-                item.columns = item.columns.map(col => ({...col, children: deleteRecursively(col.children)}));
-            } else if (item.children) {
-                item.children = deleteRecursively(item.children);
+  const updateComponentProps = useCallback((id: string, newProps: any) => {
+    setContent(prevContent => {
+      const newContent = deepClone(prevContent); // Deep copy current state
+      const updateRecursively = (components: PageComponent[]): boolean => {
+        for (let i = 0; i < components.length; i++) {
+          let component = components[i];
+          if (component.id === id) {
+            if (component.type === 'Columns' && newProps.numberOfColumns !== undefined) {
+              const currentColumns = component.columns || [];
+              const newColumnCount = newProps.numberOfColumns;
+              component.columns = Array.from({ length: newColumnCount }, (_, i) =>
+                currentColumns[i] ? deepClone(currentColumns[i]) : { id: generateId(), children: [] }
+              );
             }
+            components[i].props = { ...components[i].props, ...newProps };
             return true;
-        });
-    };
-    setContent(prev => deleteRecursively(JSON.parse(JSON.stringify(prev))));
-    setIsDirty(true);
-  };
-
-  const handleAddComponent = (type: ComponentType, parentId: string | null, targetId: string | null = null, position: 'top' | 'bottom' = 'top', columnIndex?: number) => {
-    const newComponent = createNewComponent(type);
-    const addRecursively = (items: PageComponent[]): PageComponent[] => {
-      if (parentId === null) {
-        if (targetId === null) return [...items, newComponent];
-        const targetIndex = items.findIndex(item => item.id === targetId);
-        if (targetIndex !== -1) {
-          const newItems = [...items];
-          newItems.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, newComponent);
-          return newItems;
-        }
-        return [...items, newComponent];
-      }
-      return items.map(item => {
-        if (item.id === parentId) {
-            if (item.type === 'Columns' && item.columns && columnIndex !== undefined) {
-                const newColumns = [...item.columns];
-                const targetColumn = newColumns[columnIndex];
-                if (targetColumn) {
-                    const targetIndex = targetColumn.children.findIndex(child => child.id === targetId);
-                    if (targetId === null) targetColumn.children.push(newComponent);
-                    else if (targetIndex !== -1) targetColumn.children.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, newComponent);
-                    else targetColumn.children.push(newComponent);
-                }
-                return { ...item, columns: newColumns };
-            } else if (item.children) {
-                const newChildren = [...item.children];
-                if (targetId === null) newChildren.push(newComponent);
-                else {
-                    const targetIndex = newChildren.findIndex(child => child.id === targetId);
-                    if (targetIndex !== -1) newChildren.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, newComponent);
-                    else newChildren.push(newComponent);
-                }
-                return { ...item, children: newChildren };
+          }
+          if (component.type === 'Columns' && component.columns) {
+            for (const col of component.columns) {
+              if (updateRecursively(col.children)) return true;
             }
+          } else if (component.children) {
+            if (updateRecursively(component.children)) return true;
+          }
         }
-        if (item.type === 'Columns' && item.columns) return {...item, columns: item.columns.map(col => ({...col, children: addRecursively(col.children)}))};
-        if (item.children) return { ...item, children: addRecursively(item.children) };
-        return item;
-      });
-    };
-    setContent(prev => addRecursively(JSON.parse(JSON.stringify(prev))));
-    setSelectedComponentId(newComponent.id);
+        return false;
+      };
+      updateRecursively(newContent);
+      return newContent;
+    });
     setIsDirty(true);
-  };
+  }, []);
 
-  const handleMoveComponent = (draggedId: string, targetId: string | null, parentId: string | null, position: 'top' | 'bottom', columnIndex?: number) => {
-    if (draggedId === targetId) return;
-    let componentToMove: PageComponent | null = null;
-    const removeComponent = (items: PageComponent[]): PageComponent[] => {
-      return items.filter(item => {
-        if (item.id === draggedId) {
-          componentToMove = item;
-          return false;
+  const deleteComponent = useCallback((id: string) => {
+    if (selectedComponentId === id) {
+      setSelectedComponentId(null);
+    }
+    setContent(prevContent => {
+      const deleteRecursively = (items: PageComponent[]): PageComponent[] => {
+        return items.filter(item => {
+          if (item.id === id) return false; // Hapus komponen ini
+          if (item.type === 'Columns' && item.columns) {
+            item.columns = item.columns.map(col => ({...col, children: deleteRecursively(col.children)}));
+          } else if (item.children) {
+            item.children = deleteRecursively(item.children);
+          }
+          return true;
+        });
+      };
+      return deleteRecursively(deepClone(prevContent)); // Deep copy sebelum memfilter
+    });
+    setIsDirty(true);
+  }, [selectedComponentId]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Hanya panggil deleteComponent jika tidak sedang mengetik di input/textarea
+      if ((e.key === 'Delete' || e.key === 'Backspace')) {
+        const activeElement = document.activeElement;
+        if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+          return;
         }
-        if (item.type === 'Columns' && item.columns) item.columns = item.columns.map(col => ({...col, children: removeComponent(col.children)}));
-        else if (item.children) item.children = removeComponent(item.children);
-        return true;
-      });
+        if (e.key === 'Backspace') {
+          e.preventDefault(); // Mencegah navigasi mundur browser saat Backspace ditekan di luar input
+        }
+        if (selectedComponentId) {
+          deleteComponent(selectedComponentId);
+        }
+      }
     };
-    const contentAfterRemoval = removeComponent(JSON.parse(JSON.stringify(content)));
-    if (!componentToMove) return;
-    const insertComponent = (items: PageComponent[]): PageComponent[] => {
-      if (parentId) {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedComponentId, deleteComponent]); // `deleteComponent` sekarang stabil karena `useCallback`
+
+  const handleAddComponent = useCallback((type: ComponentType, parentId: string | null, targetId: string | null = null, position: 'top' | 'bottom' = 'top', columnIndex?: number) => {
+    const newComponent = createNewComponent(type);
+    setContent(prevContent => {
+      const addRecursively = (items: PageComponent[]): PageComponent[] => {
+        if (parentId === null) { // Menambahkan ke root level
+          if (targetId === null) return [...items, newComponent];
+          const targetIndex = items.findIndex(item => item.id === targetId);
+          if (targetIndex !== -1) {
+            const newItems = [...items];
+            newItems.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, newComponent);
+            return newItems;
+          }
+          return [...items, newComponent]; // Fallback jika targetId tidak ditemukan di root
+        }
+
+        // Menambahkan ke child dari parentId
         return items.map(item => {
           if (item.id === parentId) {
             if (item.type === 'Columns' && item.columns && columnIndex !== undefined) {
-                const newColumns = [...item.columns];
-                const targetColumn = newColumns[columnIndex];
-                if (targetColumn) {
-                    if (targetId) {
-                        const targetIndex = targetColumn.children.findIndex(c => c.id === targetId);
-                        if (targetIndex !== -1) targetColumn.children.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, componentToMove!);
-                        else targetColumn.children.push(componentToMove!);
-                    } else targetColumn.children.push(componentToMove!);
+              const newColumns = deepClone(item.columns); // Deep copy columns array
+              const targetColumn = newColumns[columnIndex];
+              if (targetColumn) {
+                if (targetId === null) {
+                  targetColumn.children.push(newComponent);
+                } else {
+                  const targetIndex = targetColumn.children.findIndex(child => child.id === targetId);
+                  if (targetIndex !== -1) targetColumn.children.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, newComponent);
+                  else targetColumn.children.push(newComponent); // Fallback jika targetId tidak ditemukan di kolom
                 }
-                return { ...item, columns: newColumns };
+              }
+              return { ...item, columns: newColumns };
             } else if (item.children) {
-                const newChildren = [...item.children];
-                if (targetId) {
-                    const targetIndex = newChildren.findIndex(c => c.id === targetId);
-                    if (targetIndex !== -1) newChildren.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, componentToMove!);
-                    else newChildren.push(componentToMove!);
-                } else newChildren.push(componentToMove!);
-                return { ...item, children: newChildren };
+              const newChildren = deepClone(item.children); // Deep copy children array
+              if (targetId === null) {
+                newChildren.push(newComponent);
+              } else {
+                const targetIndex = newChildren.findIndex(child => child.id === targetId);
+                if (targetIndex !== -1) newChildren.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, newComponent);
+                else newChildren.push(newComponent); // Fallback jika targetId tidak ditemukan di children
+              }
+              return { ...item, children: newChildren };
             }
           }
-          if (item.type === 'Columns' && item.columns) return { ...item, columns: item.columns.map(col => ({...col, children: insertComponent(col.children)}))};
-          if (item.children) return { ...item, children: insertComponent(item.children) };
+          // Lanjutkan rekursi jika item memiliki children atau columns
+          if (item.type === 'Columns' && item.columns) {
+            return { ...item, columns: item.columns.map(col => ({...col, children: addRecursively(col.children)}))};
+          }
+          if (item.children) return { ...item, children: addRecursively(item.children) };
           return item;
         });
-      }
-      const newItems = [...items];
-      if (targetId) {
-        const targetIndex = newItems.findIndex(c => c.id === targetId);
-        if (targetIndex !== -1) newItems.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, componentToMove!);
-        else newItems.push(componentToMove!);
-      } else newItems.push(componentToMove!);
-      return newItems;
-    };
-    setContent(insertComponent(contentAfterRemoval));
+      };
+      return addRecursively(deepClone(prevContent));
+    });
+    setSelectedComponentId(newComponent.id);
     setIsDirty(true);
-  };
+  }, []);
 
-  const handleSave = async (publishedState: boolean) => {
-    if (!pageDocRef || !user || !firestore) return;
+  const handleMoveComponent = useCallback((draggedId: string, targetId: string | null, parentId: string | null, position: 'top' | 'bottom', columnIndex?: number) => {
+    if (draggedId === targetId) return;
+
+    setContent(prevContent => {
+      let componentToMove: PageComponent | null = null;
+      const initialContent = deepClone(prevContent);
+
+      const removeComponent = (items: PageComponent[]): PageComponent[] => {
+        return items.filter(item => {
+          if (item.id === draggedId) {
+            componentToMove = deepClone(item); // Deep copy komponen yang dipindahkan
+            return false;
+          }
+          if (item.type === 'Columns' && item.columns) item.columns = item.columns.map(col => ({...col, children: removeComponent(col.children)}));
+          else if (item.children) item.children = removeComponent(item.children);
+          return true;
+        });
+      };
+
+      const contentAfterRemoval = removeComponent(initialContent);
+
+      if (!componentToMove) return prevContent; // Jika komponen tidak ditemukan, kembalikan state lama
+
+      const insertComponent = (items: PageComponent[]): PageContent => {
+        if (parentId) {
+          return items.map(item => {
+            if (item.id === parentId) {
+              if (item.type === 'Columns' && item.columns && columnIndex !== undefined) {
+                const newColumns = deepClone(item.columns);
+                const targetColumn = newColumns[columnIndex];
+                if (targetColumn) {
+                  if (targetId) {
+                    const targetIndex = targetColumn.children.findIndex(c => c.id === targetId);
+                    if (targetIndex !== -1) targetColumn.children.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, componentToMove!);
+                    else targetColumn.children.push(componentToMove!); // Fallback jika targetId tidak ditemukan di kolom
+                  } else targetColumn.children.push(componentToMove!); // Menambahkan ke akhir kolom jika tidak ada targetId
+                }
+                return { ...item, columns: newColumns };
+              } else if (item.children) {
+                const newChildren = deepClone(item.children);
+                if (targetId) {
+                  const targetIndex = newChildren.findIndex(c => c.id === targetId);
+                  if (targetIndex !== -1) newChildren.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, componentToMove!);
+                  else newChildren.push(componentToMove!); // Fallback jika targetId tidak ditemukan di children
+                } else newChildren.push(componentToMove!); // Menambahkan ke akhir children jika tidak ada targetId
+                return { ...item, children: newChildren };
+              }
+            }
+            if (item.type === 'Columns' && item.columns) return { ...item, columns: item.columns.map(col => ({...col, children: insertComponent(col.children)}))};
+            if (item.children) return { ...item, children: insertComponent(item.children) };
+            return item;
+          });
+        }
+        // Menambahkan ke root level
+        const newItems = [...items];
+        if (targetId) {
+          const targetIndex = newItems.findIndex(c => c.id === targetId);
+          if (targetIndex !== -1) newItems.splice(targetIndex + (position === 'bottom' ? 1 : 0), 0, componentToMove!);
+          else newItems.push(componentToMove!); // Fallback jika targetId tidak ditemukan di root
+        } else newItems.push(componentToMove!); // Menambahkan ke akhir root jika tidak ada targetId
+        return newItems;
+      };
+      return insertComponent(contentAfterRemoval);
+    });
+    setIsDirty(true);
+  }, [content]); // `content` sebagai dependency karena kita perlu state terbaru
+
+  const handleSave = useCallback(async (publishedState: boolean) => {
+    if (!pageDocRef || !user || !firestore) {
+      toast({
+        variant: 'destructive',
+        title: 'Save Failed',
+        description: 'Missing necessary data (Firestore reference, user, or database).',
+      });
+      return;
+    }
     setIsSaving(true);
     try {
-        // Gunakan writeBatch untuk operasi atomik
-        const batch = writeBatch(firestore);
+      const batch = writeBatch(firestore);
 
-        // Data untuk koleksi 'pages' (dokumen privat)
-        const pageDataToSave = {
-            userId: user.uid,
-            pageName,
-            content: JSON.parse(JSON.stringify(content)), // Deep copy
-            lastUpdated: serverTimestamp(),
-            pageBackgroundColor,
-            published: publishedState,
+      // Data untuk koleksi 'pages' (dokumen privat)
+      const pageDataToSave = {
+        userId: user.uid,
+        pageName,
+        content: deepClone(content), // Deep copy
+        lastUpdated: serverTimestamp(),
+        pageBackgroundColor,
+        published: publishedState,
+      };
+      batch.set(pageDocRef, pageDataToSave, { merge: true });
+
+      // Data untuk koleksi 'publishedPages' (dokumen publik)
+      const publicPageDocRef = doc(firestore, 'publishedPages', pageId);
+      if (publishedState) {
+        const publicPageData = {
+          content: deepClone(content),
+          pageName,
+          pageBackgroundColor,
+          userId: user.uid,
         };
-        batch.set(pageDocRef, pageDataToSave, { merge: true });
+        batch.set(publicPageDocRef, publicPageData);
+      } else {
+        // Hapus dokumen publik jika halaman di-unpublish
+        batch.delete(publicPageDocRef);
+      }
 
-        // Data untuk koleksi 'publishedPages' (dokumen publik)
-        const publicPageDocRef = doc(firestore, 'publishedPages', pageId);
-        if (publishedState) {
-            const publicPageData = {
-                content: JSON.parse(JSON.stringify(content)),
-                pageName,
-                pageBackgroundColor,
-                userId: user.uid,
-            };
-            batch.set(publicPageDocRef, publicPageData);
-        } else {
-            // Hapus dokumen publik jika halaman di-unpublish
-            batch.delete(publicPageDocRef);
-        }
+      await batch.commit();
 
-        // Commit semua operasi tulis secara bersamaan
-        await batch.commit();
-
-        toast({ title: 'Page Saved!', description: 'Your changes have been successfully saved.' });
-        setIsDirty(false);
+      toast({ title: 'Page Saved!', description: 'Your changes have been successfully saved.' });
+      setIsDirty(false);
     } catch (error) {
-        console.error("Error saving page to Firestore: ", error);
-        toast({
-            variant: 'destructive',
-            title: 'Save Failed',
-            description: 'Could not save. Please check Firestore rules and console for errors.',
-        });
+      console.error("Error saving page to Firestore: ", error);
+      toast({
+        variant: 'destructive',
+        title: 'Save Failed',
+        description: 'Could not save. Please check Firestore rules and console for errors.',
+      });
     } finally {
-        setIsSaving(false);
+      setIsSaving(false);
     }
-  };
+  }, [pageDocRef, user, firestore, pageName, content, pageBackgroundColor, pageId, toast]);
 
-  const handlePublishToggle = (published: boolean) => {
+  const handlePublishToggle = useCallback((published: boolean) => {
     setIsPublished(published);
     setIsDirty(true);
     startTransition(() => {
-        handleSave(published).then(() => {
-            toast({
-                title: `Page ${published ? 'Published' : 'Unpublished'}`,
-                description: `Your page is now ${published ? 'live' : 'private'}.`,
-            });
+      handleSave(published).then(() => {
+        toast({
+          title: `Page ${published ? 'Published' : 'Unpublished'}`,
+          description: `Your page is now ${published ? 'live' : 'private'}.`,
         });
+      }).catch(err => {
+        // Tangani error jika save gagal setelah toggle
+        console.error("Error during publish toggle save:", err);
+        setIsPublished(!published); // Rollback state jika save gagal
+        toast({
+          variant: 'destructive',
+          title: 'Publish/Unpublish Failed',
+          description: 'Failed to update publish status. Please try again.',
+        });
+      });
     });
-  }
+  }, [handleSave, startTransition, toast]);
 
   const [publicUrl, setPublicUrl] = useState('');
 
@@ -366,7 +421,6 @@ export function EditorClient({ pageId }: EditorClientProps) {
     }
   }, [pageId]);
 
-  // ... (sisa JSX tidak perlu diubah)
   if (isUserLoading || (isPageLoading && pageDocRef)) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -376,7 +430,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
   }
 
   if (pageData && user && pageData.userId !== user.uid) {
-     return (
+      return (
       <div className="flex h-screen w-full items-center justify-center">
           <div className="text-center p-4">
               <h2 className="text-2xl font-bold text-destructive mb-2">Access Denied</h2>
@@ -384,7 +438,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
               <Button onClick={() => router.push('/dashboard')} className="mt-4">Go to Dashboard</Button>
           </div>
       </div>
-    )
+      );
   }
 
   if (pageError) {
@@ -396,8 +450,29 @@ export function EditorClient({ pageId }: EditorClientProps) {
               <Button onClick={() => router.push('/dashboard')} className="mt-4">Go to Dashboard</Button>
           </div>
       </div>
-    )
+    );
   }
+
+  // Jika pageData belum ada (misalnya, ini adalah halaman baru yang belum disimpan),
+  // dan user sudah loading, kita bisa menampilkan editor kosong atau loading indicator
+  if (!pageData && !isPageLoading) {
+    // Anda bisa menginisialisasi state dengan nilai default untuk halaman baru
+    // atau mengarahkan ke dashboard dengan pesan error.
+    // Untuk tujuan demo ini, kita asumsikan halaman selalu ada atau akan dibuat
+    // di tempat lain. Jika ini adalah route untuk membuat halaman baru,
+    // logika inisialisasi default harus ada di sini.
+    // Misalnya: useEffect(() => { if (!pageData) { setContent([]); setPageName('New Page'); } }, [pageData]);
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <div className="text-center p-4">
+            <h2 className="text-2xl font-bold text-muted-foreground mb-2">Page Not Found or New Page</h2>
+            <p className="text-muted-foreground max-w-md mx-auto">It seems this page does not exist or has not been initialized. Please create it first.</p>
+            <Button onClick={() => router.push('/dashboard')} className="mt-4">Go to Dashboard</Button>
+        </div>
+      </div>
+    );
+  }
+
 
   return (
     <TooltipProvider>
@@ -429,7 +504,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
               </TooltipContent>
             </Tooltip>
             {isPublished && publicUrl && (
-                 <Button variant="outline" size="sm" asChild>
+                <Button variant="outline" size="sm" asChild>
                     <Link href={publicUrl} target="_blank">
                         <LinkIcon className="mr-2 h-4 w-4" />
                         View Live
@@ -459,11 +534,11 @@ export function EditorClient({ pageId }: EditorClientProps) {
                         <div className="space-y-2">
                            <Label>Public URL</Label>
                            <div className="flex items-center gap-2">
-                            <input readOnly value={publicUrl} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
-                            <Button variant="outline" size="sm" onClick={() => {
-                                navigator.clipboard.writeText(publicUrl);
-                                toast({ title: 'Copied to clipboard!' });
-                            }}>Copy</Button>
+                             <input readOnly value={publicUrl} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                             <Button variant="outline" size="sm" onClick={() => {
+                                 navigator.clipboard.writeText(publicUrl);
+                                 toast({ title: 'Copied to clipboard!' });
+                             }}>Copy</Button>
                            </div>
                         </div>
                     )}
@@ -480,7 +555,7 @@ export function EditorClient({ pageId }: EditorClientProps) {
         </header>
         <div className="flex-grow flex overflow-hidden">
           <aside className="w-80 bg-background border-r flex-shrink-0 basis-80 overflow-y-auto flex flex-col">
-            <ComponentPalette />
+            <ComponentPalette onAddComponent={handleAddComponent} />
             <Separator />
             <div className="flex-grow">
               <InspectorPanel
