@@ -1,6 +1,6 @@
 import ImageKit from "imagekit";
 
-// Tambahkan baris ini untuk memberitahu Next.js bahwa route ini dinamis
+// Memberitahu Next.js untuk menjalankan route ini secara dinamis
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {

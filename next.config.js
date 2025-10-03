@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     typescript: {
-      // Baris ini penting untuk Vercel agar tidak gagal build karena error TypeScript
+      // Ini penting agar Vercel tidak gagal build karena error TypeScript.
+      // Sebaiknya perbaiki error Tipe dan set ke `false` di masa depan.
       ignoreBuildErrors: true,
     },
     images: {

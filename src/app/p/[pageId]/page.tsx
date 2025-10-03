@@ -1,80 +1,38 @@
-'use client';
-
-import React, { useEffect, useState } from 'react';
-import { notFound, useParams } from 'next/navigation';
-import { doc, getDoc, type DocumentData } from 'firebase/firestore'; // <-- Perubahan di sini
-import { useFirestore } from '@/firebase';
-import { Loader2 } from 'lucide-react';
-import { EditorCanvas } from '@/components/editor/editor-canvas';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/firebase/config'; // Pastikan path ini benar
 import { PageContent } from '@/lib/types';
+import { EditorCanvas } from '@/components/editor/editor-canvas';
+import { notFound } from 'next/navigation';
 
-interface PublicPageData extends DocumentData {
-  content: PageContent;
-  pageBackgroundColor: string;
-  pageName: string;
-  userId: string;
+interface PublicPageProps {
+  params: {
+    pageId: string;
+  };
 }
 
-export default function PublicPage() {
-  const firestore = useFirestore();
-  const params = useParams();
-  const pageId = typeof params.pageId === 'string' ? params.pageId : null;
+async function getPublishedPage(pageId: string) {
+  const docRef = doc(db, 'publishedPages', pageId);
+  const docSnap = await getDoc(docRef);
 
-  const [pageData, setPageData] = useState<PublicPageData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  if (!docSnap.exists()) {
+    return null;
+  }
+  return docSnap.data();
+}
 
-  useEffect(() => {
-    if (!firestore || !pageId) {
-      setIsLoading(false);
-      return;
-    }
+export default async function PublicPage({ params }: PublicPageProps) {
+  const pageData = await getPublishedPage(params.pageId);
 
-    const fetchPageData = async () => {
-      setIsLoading(true);
-      try {
-        const docRef = doc(firestore, 'publishedPages', pageId);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-          setPageData(docSnap.data() as PublicPageData);
-        } else {
-          // Jika docSnap.exists() false, berarti dokumen tidak ditemukan
-          setPageData(null);
-        }
-      } catch (e: any) {
-        console.error("Error saat mengambil dokumen:", e);
-        setError(e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchPageData();
-  }, [firestore, pageId]);
-
-  if (isLoading || !pageId) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+  if (!pageData) {
+    notFound();
   }
 
-  // Tampilkan 404 jika ada error atau data tidak ditemukan setelah loading
-  if (error || !pageData) {
-     return notFound();
-  }
-  
-  // Render halaman jika data berhasil ditemukan
+  const content = pageData.content as PageContent || [];
+  const pageBackgroundColor = pageData.pageBackgroundColor as string || '#FFFFFF';
+
   return (
-    <div style={{ backgroundColor: pageData.pageBackgroundColor || '#FFFFFF' }}>
-      <EditorCanvas
-        content={pageData.content}
-        readOnly
-        pageId={pageId}
-        pageName={pageData.pageName}
-      />
+    <div style={{ backgroundColor: pageBackgroundColor }}>
+      <EditorCanvas content={content} isPublicView />
     </div>
   );
 }
